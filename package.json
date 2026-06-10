@@ -1,0 +1,22 @@
+{
+  "name": "@nullstatelabs/ui-visual-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI-powered visual regression testing: screenshot → Claude Vision → Postgres ticket → auto PR fix",
+  "scripts": {
+    "test": "playwright test",
+    "fix": "tsx src/agent/fix-agent.ts",
+    "migrate": "tsx src/helpers/migrate.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.55.0",
+    "@octokit/rest": "^21.1.1",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.4",
+    "typescript": "^5.9.3"
+  }
+}
