@@ -1,15 +1,28 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
+
 /**
- * Set BASE_URL env var to point at the app under test.
- * When BASE_URL is localhost the runner expects the dev server to already be running.
+ * Optional auto-start of the dev server.
+ * Set WEB_SERVER_COMMAND and WEB_SERVER_CWD in your .env to enable.
+ * When unset, the runner expects the app to already be running at BASE_URL.
  */
+const webServer = process.env.WEB_SERVER_COMMAND
+  ? {
+      command: process.env.WEB_SERVER_COMMAND,
+      url: baseURL,
+      reuseExistingServer: true,
+      timeout: 120_000,
+      cwd: process.env.WEB_SERVER_CWD,
+    }
+  : undefined;
+
 export default defineConfig({
   testDir: "./specs",
-  timeout: 60_000,
+  timeout: 90_000,
   reporter: "list",
   use: {
-    baseURL: process.env.BASE_URL ?? "http://localhost:3000",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
@@ -18,4 +31,5 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
+  webServer,
 });
