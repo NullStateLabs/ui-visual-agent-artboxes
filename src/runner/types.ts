@@ -23,4 +23,9 @@ export interface Scenario {
 
 export interface AgentConfig {
   scenarios: Scenario[];
+  /**
+   * Routes the chaos runner can explore. Falls back to sitemap.xml discovery
+   * if omitted, then to ["/"] if the sitemap is unreachable.
+   */
+  routes?: string[];
 }

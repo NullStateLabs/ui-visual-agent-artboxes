@@ -1,12 +1,16 @@
 /**
  * Artboxes UI agent config — reference example.
  * Copy this to the repo root as ui-agent.config.ts and adapt.
+ *
+ *   cp examples/artboxes-config.ts ui-agent.config.ts
+ *
+ * Then change the import path from "../src/..." to "./src/..."
  */
 import type { AgentConfig } from "../src/runner/types.js";
 
 const config: AgentConfig = {
+  // ── Nightly scenarios ────────────────────────────────────────────
   scenarios: [
-    // ── Public pages ──────────────────────────────────────────────
     {
       label: "home — mobile",
       url: "/",
@@ -24,7 +28,7 @@ const config: AgentConfig = {
       viewport: { width: 375, height: 812 },
     },
 
-    // ── Interactions: modals ──────────────────────────────────────
+    // ── Interactions: modals ────────────────────────────────────────
     {
       label: "connect wallet modal",
       url: "/",
@@ -35,12 +39,20 @@ const config: AgentConfig = {
       ],
     },
 
-    // ── Error / empty states ──────────────────────────────────────
+    // ── Error / empty states ────────────────────────────────────────
     {
       label: "404 page",
       url: "/this-page-does-not-exist",
       viewport: { width: 375, height: 812 },
     },
+  ],
+
+  // ── Chaos mode routes ─────────────────────────────────────────────
+  // Claude will autonomously explore each of these, clicking wherever
+  // it finds interesting UI elements. Falls back to /sitemap.xml if omitted.
+  routes: [
+    "/",
+    "/collections",
   ],
 };
 

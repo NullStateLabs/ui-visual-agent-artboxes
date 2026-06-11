@@ -1,13 +1,20 @@
 /**
  * Fix Agent — Step 5 of the visual testing pipeline.
  *
- * Reads open ui_bug_tickets from Postgres, uses Claude to generate a code fix,
- * then opens a GitHub PR with the corrected file.
+ * Two modes:
+ *
+ *   'bugfix-branch' (default, nightly):
+ *     All fixes committed to a single 'bugfix' branch. One PR opened (or
+ *     updated) from bugfix → main. Branch is created from main if it doesn't
+ *     exist yet.
+ *
+ *   'direct' (chaos / battle-hardening):
+ *     Commits applied directly to the base branch. No PR, no review.
  *
  * Required env vars:
- *   DATABASE_URL       — Postgres connection string
- *   GITHUB_TOKEN       — PAT with repo scope (Contents + Pull requests write)
- *   ANTHROPIC_API_KEY  — Anthropic API key (or set MOCK_LLM=true to skip)
+ *   DATABASE_URL          — Postgres connection string
+ *   UI_FIX_GITHUB_TOKEN   — PAT with repo scope (Contents + Pull requests write)
+ *   ANTHROPIC_API_KEY     — Anthropic API key (or set MOCK_LLM=true to skip)
  *
  * Optional:
  *   GITHUB_REPO_OWNER  — defaults to "NullStateLabs"
@@ -15,22 +22,32 @@
  *   GITHUB_BASE_BRANCH — defaults to "main"
  */
 
+import { fileURLToPath } from "url";
 import { Octokit } from "@octokit/rest";
-import { getOpenTickets, resolveTicket, closePool } from "../helpers/db-ticket";
-import { generateCodeFix } from "../helpers/llm-vision";
+import { getOpenTickets, resolveTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
+import { generateCodeFix } from "../helpers/llm-vision.js";
 
 const REPO_OWNER = process.env.GITHUB_REPO_OWNER ?? "NullStateLabs";
 const REPO_NAME = process.env.GITHUB_REPO_NAME ?? "artboxes";
 const BASE_BRANCH = process.env.GITHUB_BASE_BRANCH ?? "main";
+const BUGFIX_BRANCH = "bugfix";
 
-const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+function getOctokit(): Octokit {
+  const token = process.env.UI_FIX_GITHUB_TOKEN;
+  if (!token) throw new Error("UI_FIX_GITHUB_TOKEN is not set");
+  return new Octokit({ auth: token });
+}
 
-async function getFileContent(filePath: string): Promise<{ content: string; sha: string }> {
+async function getFileContent(
+  octokit: Octokit,
+  filePath: string,
+  ref: string = BASE_BRANCH
+): Promise<{ content: string; sha: string }> {
   const { data } = await octokit.repos.getContent({
     owner: REPO_OWNER,
     repo: REPO_NAME,
     path: filePath,
-    ref: BASE_BRANCH,
+    ref,
   });
 
   if (Array.isArray(data) || data.type !== "file") {
@@ -43,87 +60,144 @@ async function getFileContent(filePath: string): Promise<{ content: string; sha:
   };
 }
 
-async function createFixBranch(ticketId: number): Promise<string> {
-  const { data: ref } = await octokit.git.getRef({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    ref: `heads/${BASE_BRANCH}`,
-  });
-
-  const branchName = `fix/ui-bug-ticket-${ticketId}`;
-
-  await octokit.git.createRef({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    ref: `refs/heads/${branchName}`,
-    sha: ref.object.sha,
-  });
-
-  return branchName;
+async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
+  try {
+    await octokit.git.getRef({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      ref: `heads/${BUGFIX_BRANCH}`,
+    });
+    console.log(`  Branch '${BUGFIX_BRANCH}' already exists`);
+  } catch {
+    const { data: mainRef } = await octokit.git.getRef({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      ref: `heads/${BASE_BRANCH}`,
+    });
+    await octokit.git.createRef({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      ref: `refs/heads/${BUGFIX_BRANCH}`,
+      sha: mainRef.object.sha,
+    });
+    console.log(`  Created branch '${BUGFIX_BRANCH}' from ${BASE_BRANCH}`);
+  }
 }
 
-async function commitFix(opts: {
-  branch: string;
-  filePath: string;
-  fixedContent: string;
-  sha: string;
-  ticketId: number;
-  component: string;
-}): Promise<void> {
+async function commitFix(
+  octokit: Octokit,
+  opts: {
+    branch: string;
+    filePath: string;
+    fixedContent: string;
+    sha: string;
+    ticketId: number;
+    component: string;
+  }
+): Promise<void> {
   await octokit.repos.createOrUpdateFileContents({
     owner: REPO_OWNER,
     repo: REPO_NAME,
     path: opts.filePath,
-    message: `fix(ui): restore mobile stacking in ${opts.component} [ticket #${opts.ticketId}]`,
+    message: `fix(ui): ${opts.component} [ticket #${opts.ticketId}]`,
     content: Buffer.from(opts.fixedContent).toString("base64"),
     sha: opts.sha,
     branch: opts.branch,
   });
 }
 
-async function openPR(opts: {
-  branch: string;
-  ticketId: number;
-  component: string;
-  assertion: string;
-  reasoning: string;
-}): Promise<string> {
+async function ensureBugfixPR(
+  octokit: Octokit,
+  fixed: Array<BugTicket & { id: number }>
+): Promise<string> {
+  const { data: existing } = await octokit.pulls.list({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    head: `${REPO_OWNER}:${BUGFIX_BRANCH}`,
+    base: BASE_BRANCH,
+    state: "open",
+  });
+
+  const body = [
+    `## UI Bug Fixes — auto-generated`,
+    ``,
+    ...fixed.map(
+      (t) => `- **\`${t.component}\`** — ticket #${t.id}: ${t.reasoning}`
+    ),
+    ``,
+    `> Fixes generated by the visual testing pipeline. Review before merging.`,
+  ].join("\n");
+
+  if (existing.length > 0) {
+    await octokit.pulls.update({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      pull_number: existing[0].number,
+      body,
+    });
+    console.log(`  PR updated: ${existing[0].html_url}`);
+    return existing[0].html_url;
+  }
+
   const { data } = await octokit.pulls.create({
     owner: REPO_OWNER,
     repo: REPO_NAME,
-    title: `fix(ui): ${opts.component} mobile layout regression [ticket #${opts.ticketId}]`,
-    body: [
-      `## UI Bug Fix — auto-generated`,
-      ``,
-      `**Component:** \`${opts.component}\``,
-      `**Failed assertion:** ${opts.assertion}`,
-      `**LLM reasoning:** ${opts.reasoning}`,
-      ``,
-      `> Auto-fix generated by the visual testing pipeline. Review before merging.`,
-    ].join("\n"),
-    head: opts.branch,
+    title: `fix(ui): visual regression fixes (${fixed.length} ticket${fixed.length !== 1 ? "s" : ""})`,
+    body,
+    head: BUGFIX_BRANCH,
     base: BASE_BRANCH,
   });
 
+  console.log(`  PR opened: ${data.html_url}`);
   return data.html_url;
 }
 
-async function main() {
-  console.log("Fix Agent starting…");
+export interface FixAgentOpts {
+  /**
+   * 'bugfix-branch' (default): all fixes go to a single 'bugfix' branch, one PR opened.
+   * 'direct': commits applied straight to the base branch. No PR.
+   */
+  mode?: "bugfix-branch" | "direct";
+}
 
-  if (!process.env.GITHUB_TOKEN) {
-    console.error("GITHUB_TOKEN is not set — cannot open PRs");
-    process.exit(1);
+/**
+ * Process all open bug tickets.
+ * Does NOT close the Postgres pool — the caller is responsible for that.
+ */
+export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
+  const mode = opts.mode ?? "bugfix-branch";
+
+  console.log(`Fix Agent starting… (mode: ${mode})`);
+
+  if (!process.env.UI_FIX_GITHUB_TOKEN) {
+    console.warn("UI_FIX_GITHUB_TOKEN is not set — skipping auto-fix");
+    return;
   }
 
+  const octokit = getOctokit();
   const tickets = await getOpenTickets();
   console.log(`Found ${tickets.length} open ticket(s)`);
+
+  if (tickets.length === 0) return;
+
+  const targetBranch = mode === "direct" ? BASE_BRANCH : BUGFIX_BRANCH;
+
+  if (mode === "bugfix-branch") {
+    await ensureBugfixBranch(octokit);
+  }
+
+  const fixed: Array<BugTicket & { id: number }> = [];
 
   for (const ticket of tickets) {
     console.log(`\nProcessing ticket #${ticket.id}: ${ticket.component}`);
 
     try {
-      const { content: fileContent, sha } = await getFileContent(ticket.file_path);
+      // Always read from the target branch so sequential commits chain correctly
+      const { content: fileContent, sha } = await getFileContent(
+        octokit,
+        ticket.file_path,
+        targetBranch
+      );
 
       const fixedContent = await generateCodeFix({
         filePath: ticket.file_path,
@@ -134,15 +208,12 @@ async function main() {
       });
 
       if (fixedContent === fileContent) {
-        console.log(`  No changes generated for ticket #${ticket.id}, skipping`);
+        console.log(`  No changes generated, skipping`);
         continue;
       }
 
-      const branch = await createFixBranch(ticket.id);
-      console.log(`  Created branch: ${branch}`);
-
-      await commitFix({
-        branch,
+      await commitFix(octokit, {
+        branch: targetBranch,
         filePath: ticket.file_path,
         fixedContent,
         sha,
@@ -150,25 +221,28 @@ async function main() {
         component: ticket.component,
       });
 
-      const prUrl = await openPR({
-        branch,
-        ticketId: ticket.id,
-        component: ticket.component,
-        assertion: ticket.assertion,
-        reasoning: ticket.reasoning,
-      });
-
       await resolveTicket(ticket.id);
+      fixed.push(ticket);
 
-      console.log(`  PR opened: ${prUrl}`);
-      console.log(`  Ticket #${ticket.id} resolved`);
+      console.log(`  Committed to '${targetBranch}' — ticket #${ticket.id} resolved`);
     } catch (err) {
       console.error(`  Failed to process ticket #${ticket.id}:`, err);
     }
   }
 
-  await closePool();
-  console.log("\nFix Agent done.");
+  if (mode === "bugfix-branch" && fixed.length > 0) {
+    await ensureBugfixPR(octokit, fixed);
+  }
+
+  console.log(`\nFix Agent done. ${fixed.length}/${tickets.length} ticket(s) resolved.`);
 }
 
-main();
+// CLI entry point
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  runFixAgent()
+    .then(() => closePool())
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}

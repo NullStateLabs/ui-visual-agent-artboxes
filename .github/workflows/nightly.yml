@@ -1,0 +1,62 @@
+name: Nightly Visual QA
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC every night
+  workflow_dispatch:     # allow manual runs from the Actions tab
+
+jobs:
+  visual-qa:
+    name: Screenshot → Claude Vision → Auto-fix PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run DB migration
+        run: pnpm migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run visual tests + auto-fix
+        run: pnpm test:ci
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          UI_FIX_GITHUB_TOKEN: ${{ secrets.UI_FIX_GITHUB_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ vars.GITHUB_REPO_OWNER }}
+          GITHUB_REPO_NAME: ${{ vars.GITHUB_REPO_NAME }}
+          GITHUB_BASE_BRANCH: ${{ vars.GITHUB_BASE_BRANCH || 'main' }}
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.run_id }}
+          path: screenshots/
+          retention-days: 14
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7

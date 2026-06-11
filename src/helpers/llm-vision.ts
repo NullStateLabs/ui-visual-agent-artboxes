@@ -161,3 +161,65 @@ export async function generateCodeFix(opts: {
 
   return response.content[0].type === "text" ? response.content[0].text : opts.fileContent;
 }
+
+export interface ExploreAction {
+  /** Visible text of the element to interact with — used with getByText() */
+  text: string;
+  action: "click" | "fill";
+  /** Value to type when action is "fill" */
+  value?: string;
+  reasoning: string;
+}
+
+/**
+ * Given a screenshot, ask Claude which element to interact with next
+ * to maximise UI coverage and surface potential bugs.
+ * Returns null when there is nothing interesting left to explore.
+ */
+export async function suggestNextAction(imagePath: string): Promise<ExploreAction | null> {
+  if (MOCK_LLM) {
+    return { text: "Connect", action: "click", reasoning: "MOCK: clicking the connect button" };
+  }
+
+  const imageData = fs.readFileSync(imagePath).toString("base64");
+
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 512,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: "image/png", data: imageData },
+          },
+          {
+            type: "text",
+            text: [
+              "You are an exploratory tester for a web app. Given this screenshot, choose ONE interactive element to interact with next to maximise UI coverage and surface potential bugs.",
+              "",
+              "Prefer: navigation links, buttons, form inputs, tabs, dropdowns, modal triggers, pagination.",
+              "Avoid: elements you have likely already clicked this session, external links, destructive actions (delete, logout).",
+              "",
+              'Reply with JSON only — no markdown, no prose: {"text":"<visible text of element>","action":"click"|"fill","value":"<text to type if fill>","reasoning":"<one sentence>"}',
+              'Return {"text":null} if nothing interesting remains.',
+            ].join("\n"),
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = response.content[0].type === "text" ? response.content[0].text.trim() : '{"text":null}';
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (!parsed.text) return null;
+    return parsed as ExploreAction;
+  } catch {
+    console.error("suggestNextAction: non-JSON response:", raw);
+    return null;
+  }
+}
