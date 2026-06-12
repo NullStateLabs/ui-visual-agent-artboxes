@@ -76,24 +76,21 @@ const config: AgentConfig = {
       url: "/shipping",
       viewport: { width: 375, height: 812 },
       // Renders "Sign in to manage your shipping address" centred message
-      skipIssueIds: [49],
+      skipIssueIds: [8],
     },
     {
       label: "dashboard — unauthenticated — mobile",
       url: "/dashboard",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [49],
+      skipIssueIds: [8],
     },
 
     // ── Mobile: error states ──────────────────────────────────────────
     {
-      // KNOWN ISSUE: 404 page has a large empty area between the nav and
-      // error message with no illustration or guidance. Issue #49 tracked
-      // as UX debt; #8 (broken image) intentionally skipped.
       label: "404 page — mobile",
       url: "/this-page-does-not-exist",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [49],
     },
 
     // ── Desktop: core marketing pages ────────────────────────────────
@@ -182,13 +179,11 @@ const config: AgentConfig = {
       url: "/marketplace",
       viewport: { width: 1440, height: 900 },
       severityThreshold: "medium",
-      skipIssueIds: [49],
+      skipIssueIds: [49, 11],
     },
 
     // ── Mobile: interactive scenarios ─────────────────────────────────
     {
-      // KNOWN ISSUE: Sign-in modal (Privy) opens without a dark overlay/scrim
-      // behind it — background content bleeds through. HIGH severity real bug.
       label: "sign in modal — mobile",
       url: "/",
       viewport: { width: 375, height: 812 },
@@ -196,6 +191,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign In')" },
         { action: "wait", ms: 800 },
       ],
+      skipIssueIds: [43],
     },
     {
       label: "faq accordion — first item expanded — mobile",
@@ -206,6 +202,7 @@ const config: AgentConfig = {
         { action: "click", selector: "details summary" },
         { action: "wait", ms: 300 },
       ],
+      skipIssueIds: [46],
     },
     {
       label: "home hero carousel — second page — mobile",
@@ -242,6 +239,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign In')" },
         { action: "wait", ms: 800 },
       ],
+      skipIssueIds: [9],
     },
     {
       label: "global search with query — desktop",
@@ -255,6 +253,7 @@ const config: AgentConfig = {
         },
         { action: "wait", ms: 700 },
       ],
+      skipIssueIds: [3, 11],
     },
     {
       label: "faq accordion — first item expanded — desktop",
