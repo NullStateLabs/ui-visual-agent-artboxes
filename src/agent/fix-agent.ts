@@ -56,50 +56,55 @@ async function getFileContent(
 }
 
 /**
- * Push all changed files as a SINGLE commit on the target branch.
- * One push → one Vercel preview → one email (at most).
- * Returns the new commit SHA.
+ * Create one commit per fix, then push ONCE at the end.
+ *
+ * git.createCommit  — local to GitHub's object store, no push, no Vercel trigger
+ * git.updateRef     — the actual push; called once for all commits combined
+ *
+ * Result: clean history (one commit per ticket), one Vercel preview, one email.
+ * Returns the SHA of the final (tip) commit.
  */
-async function batchCommit(
+async function commitAllAndPush(
   octokit: Octokit,
   branch: string,
-  files: Array<{ path: string; content: string }>,
-  message: string,
+  fixes: Array<{ filePath: string; fixedContent: string; ticketId: number; component: string }>,
 ): Promise<string> {
   const { data: refData } = await octokit.git.getRef({
     owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${branch}`,
   });
-  const headSha = refData.object.sha;
+  let currentSha = refData.object.sha;
 
-  const { data: headCommit } = await octokit.git.getCommit({
-    owner: REPO_OWNER, repo: REPO_NAME, commit_sha: headSha,
-  });
+  // Build commit chain — no push yet
+  for (const fix of fixes) {
+    const { data: parentCommit } = await octokit.git.getCommit({
+      owner: REPO_OWNER, repo: REPO_NAME, commit_sha: currentSha,
+    });
 
-  const { data: newTree } = await octokit.git.createTree({
-    owner: REPO_OWNER, repo: REPO_NAME,
-    base_tree: headCommit.tree.sha,
-    tree: files.map(({ path, content }) => ({
-      path,
-      mode: "100644" as const,
-      type: "blob" as const,
-      content,
-    })),
-  });
+    const { data: newTree } = await octokit.git.createTree({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      base_tree: parentCommit.tree.sha,
+      tree: [{ path: fix.filePath, mode: "100644" as const, type: "blob" as const, content: fix.fixedContent }],
+    });
 
-  const { data: newCommit } = await octokit.git.createCommit({
-    owner: REPO_OWNER, repo: REPO_NAME,
-    message,
-    tree: newTree.sha,
-    parents: [headSha],
-  });
+    const { data: newCommit } = await octokit.git.createCommit({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      message: `fix(ui): ${fix.component} [ticket #${fix.ticketId}]`,
+      tree: newTree.sha,
+      parents: [currentSha],
+    });
 
+    currentSha = newCommit.sha;
+    console.log(`  Staged commit ${newCommit.sha.slice(0, 8)}: ${fix.component}`);
+  }
+
+  // ONE push — triggers exactly one Vercel preview deployment
   await octokit.git.updateRef({
     owner: REPO_OWNER, repo: REPO_NAME,
     ref: `heads/${branch}`,
-    sha: newCommit.sha,
+    sha: currentSha,
   });
 
-  return newCommit.sha;
+  return currentSha;
 }
 
 async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
@@ -329,27 +334,25 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
     return;
   }
 
-  // ── Phase 2: one batch commit, one push ───────────────────────────────────
+  // ── Phase 2: N commits (one per ticket), ONE push at the end ─────────────
 
-  // Final state of each file (cache holds the fully-patched version)
-  const filesToCommit = [...new Set(readyFixes.map((f) => f.filePath))].map((path) => ({
-    path,
-    content: fileCache.get(path)!,
-  }));
-
-  const ticketIds = readyFixes.map((f) => f.ticket.id);
-  const commitMessage =
-    `fix(ui): auto-fix ${readyFixes.length} visual issue(s) [tickets ${ticketIds.join(", ")}]\n\n` +
-    readyFixes.map((f) => `- ${f.ticket.component}: ${f.ticket.reasoning}`).join("\n");
-
-  console.log(`\n  Committing ${filesToCommit.length} file(s) in one batch push…`);
+  console.log(`\n  Staging ${readyFixes.length} commit(s) then pushing once…`);
 
   let commitSha: string;
   try {
-    commitSha = await batchCommit(octokit, targetBranch, filesToCommit, commitMessage);
-    console.log(`  Pushed: ${commitSha.slice(0, 8)} — one commit, one Vercel preview`);
+    commitSha = await commitAllAndPush(
+      octokit,
+      targetBranch,
+      readyFixes.map((f) => ({
+        filePath: f.filePath,
+        fixedContent: fileCache.get(f.filePath)!,
+        ticketId: f.ticket.id,
+        component: f.ticket.component,
+      })),
+    );
+    console.log(`  Pushed tip: ${commitSha.slice(0, 8)} — one Vercel preview for all fixes`);
   } catch (err) {
-    console.error("  Batch commit failed:", err);
+    console.error("  Push failed:", err);
     return;
   }
 
