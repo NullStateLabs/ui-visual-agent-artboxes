@@ -21,6 +21,7 @@ export default defineConfig({
   testDir: "./specs",
   timeout: 90_000,
   reporter: "list",
+  globalTeardown: "./src/playwright-teardown.ts",
   use: {
     baseURL,
     trace: "on-first-retry",

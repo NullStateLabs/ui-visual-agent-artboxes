@@ -29,7 +29,7 @@
 
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 import { Octokit } from "@octokit/rest";
@@ -79,6 +79,17 @@ async function verifyBuildWithAutoFix(
     execSync(`git clone --depth 1 --branch ${BASE_BRANCH} ${cloneUrl} ${tmpDir}`, {
       stdio: "inherit",
     });
+
+    // Install dependencies so local CLI tools (turbo, next, etc.) are available
+    const hasYarn = existsSync(join(tmpDir, "yarn.lock"));
+    const hasPnpm = existsSync(join(tmpDir, "pnpm-lock.yaml"));
+    const installCmd = hasPnpm
+      ? "pnpm install --frozen-lockfile"
+      : hasYarn
+      ? "yarn install --frozen-lockfile"
+      : "npm ci";
+    console.log(`  Installing dependencies: ${installCmd}`);
+    execSync(installCmd, { cwd: tmpDir, stdio: "inherit" });
 
     // Apply original UI fixes
     for (const { filePath, fixedContent } of fixes) {
