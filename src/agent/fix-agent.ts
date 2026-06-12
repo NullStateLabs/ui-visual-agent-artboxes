@@ -106,7 +106,14 @@ async function verifyBuildWithAutoFix(
       console.log(`  Build attempt ${attempt}/${MAX_BUILD_RETRIES}: ${buildCommand}`);
 
       try {
-        execSync(buildCommand, { cwd: tmpDir, stdio: "inherit" });
+        execSync(buildCommand, {
+          cwd: tmpDir,
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            PATH: `${join(tmpDir, "node_modules", ".bin")}:${process.env.PATH ?? ""}`,
+          },
+        });
         console.log("  Build passed — proceeding with push");
         return { passed: true, extraFixes: allExtraFixes };
       } catch (err: any) {

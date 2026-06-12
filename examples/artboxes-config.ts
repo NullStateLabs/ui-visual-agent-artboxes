@@ -62,64 +62,64 @@ const config: AgentConfig = {
       viewport: { width: 1280, height: 800 },
     },
 
-    // Marketplace — unauthenticated shows a sign-in wall; empty container is intentional (#8)
+    // Marketplace — unauthenticated shows a sign-in wall; empty container + no empty-state msg is intentional (#8, #49)
     {
       label: "Web / Marketplace — mobile (unauthed)",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / Marketplace — desktop (unauthed)",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1280, height: 800 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
 
-    // Auth-required pages — all render a Privy sign-in wall when unauthenticated (#8)
+    // Auth-required pages — all render a Privy sign-in wall when unauthenticated (#8, #49)
     {
       label: "Web / Dashboard — mobile (unauthed)",
       url: `${WEB_URL}/dashboard`,
       filePath: "apps/web/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / Dashboard — desktop (unauthed)",
       url: `${WEB_URL}/dashboard`,
       filePath: "apps/web/app/dashboard/page.tsx",
       viewport: { width: 1280, height: 800 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / Profile — mobile (unauthed)",
       url: `${WEB_URL}/profile`,
       filePath: "apps/web/app/profile/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / Wallet — mobile (unauthed)",
       url: `${WEB_URL}/wallet`,
       filePath: "apps/web/app/wallet/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / History — mobile (unauthed)",
       url: `${WEB_URL}/history`,
       filePath: "apps/web/app/history/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / Shipping — mobile (unauthed)",
       url: `${WEB_URL}/shipping`,
       filePath: "apps/web/app/shipping/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
 
     // FAQ — accordion toggles are icon-only by design (#46)
@@ -221,7 +221,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Web / PlaceOfferModal — desktop",
@@ -232,7 +232,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
@@ -250,48 +250,48 @@ const config: AgentConfig = {
       viewport: { width: 1280, height: 800 },
     },
 
-    // Auth-required artist pages (#8)
+    // Auth-required artist pages (#8, #49)
     {
       label: "Artist / Dashboard — mobile (unauthed)",
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 1280, height: 800 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / Earnings — mobile (unauthed)",
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / Earnings — desktop (unauthed)",
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 1280, height: 800 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / Claims — mobile (unauthed)",
       url: `${ARTIST_URL}/claims`,
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / Referrals — mobile (unauthed)",
       url: `${ARTIST_URL}/referrals`,
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
 
     {
@@ -318,7 +318,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -329,7 +329,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / WithdrawModal — desktop",
@@ -340,7 +340,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8],
+      skipIssueIds: [8, 49],
     },
 
     // ── PRE-LAUNCH APP ───────────────────────────────────────────────────────
