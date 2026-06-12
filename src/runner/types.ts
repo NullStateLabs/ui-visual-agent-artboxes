@@ -11,6 +11,13 @@ export interface Scenario {
   label: string;
   /** Path relative to baseURL, e.g. "/" or "/collections/abc" */
   url: string;
+  /**
+   * Path to the source file in the target repo that owns this page's layout.
+   * e.g. "app/upcoming/page.tsx" or "src/pages/collections/index.tsx"
+   * Required for the fix agent to auto-fix detected issues.
+   * If omitted, issues are logged as tickets but cannot be auto-fixed.
+   */
+  filePath?: string;
   /** Interactions to perform before taking the screenshot */
   steps?: StepAction[];
   /** Viewport to use for this scenario. Defaults to mobile (375×812) */

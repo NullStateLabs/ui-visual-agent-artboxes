@@ -46,7 +46,7 @@ for (const scenario of config.scenarios) {
       for (const finding of result.findings) {
         const ticketId = await insertBugTicket({
           component: scenario.label,
-          file_path: scenario.url,
+          file_path: scenario.filePath ?? "",
           assertion: finding.description,
           reasoning: finding.reasoning,
           screenshot_path: screenshotPath,
