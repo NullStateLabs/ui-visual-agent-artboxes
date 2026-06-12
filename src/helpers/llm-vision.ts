@@ -176,8 +176,14 @@ export async function generateBuildFix(opts: {
     return [];
   }
 
+  const MAX_FILE_CHARS = 3000;
   const filesSection = opts.changedFiles
-    .map((f) => `### ${f.path}\n\`\`\`tsx\n${f.content}\n\`\`\``)
+    .map((f) => {
+      const body = f.content.length > MAX_FILE_CHARS
+        ? f.content.slice(0, MAX_FILE_CHARS) + "\n// … [truncated]"
+        : f.content;
+      return `### ${f.path}\n\`\`\`tsx\n${body}\n\`\`\``;
+    })
     .join("\n\n");
 
   const response = await getClient().messages.create({
