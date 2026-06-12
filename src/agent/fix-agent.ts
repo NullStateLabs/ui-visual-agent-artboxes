@@ -34,7 +34,7 @@ import { join, dirname } from "path";
 import { tmpdir } from "os";
 import { Octokit } from "@octokit/rest";
 import { getOpenTickets, resolveTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
-import { generateCodeFix } from "../helpers/llm-vision.js";
+import { generateCodeFix, generateBuildFix } from "../helpers/llm-vision.js";
 
 const REPO_OWNER    = process.env.REPO_OWNER  ?? "NullStateLabs";
 const REPO_NAME     = process.env.REPO_NAME   ?? "artboxes";
@@ -47,18 +47,27 @@ function getOctokit(): Octokit {
   return new Octokit({ auth: token });
 }
 
-// ── Local build check ─────────────────────────────────────────────────────────
+// ── Local build check with auto-fix ──────────────────────────────────────────
+
+const MAX_BUILD_RETRIES = 3;
 
 /**
- * Clone the target repo, apply all pending fixes to the working tree,
- * run BUILD_COMMAND. Returns true if the build passes, false otherwise.
- * Returns true immediately if BUILD_COMMAND is not set.
+ * Clone the target repo, apply all pending fixes, then run BUILD_COMMAND.
+ *
+ * If the build fails, Claude reads the error output and generates additional
+ * file edits. Those are applied to the clone and the build is retried (up to
+ * MAX_BUILD_RETRIES times). Any extra files Claude changed are returned so
+ * they can be included as additional commits in the push.
+ *
+ * Returns { passed, extraFixes } where extraFixes are the build-error fixes
+ * Claude applied on top of the original UI fixes.
+ * Returns { passed: true, extraFixes: [] } immediately if BUILD_COMMAND is unset.
  */
-async function verifyBuildLocally(
+async function verifyBuildWithAutoFix(
   fixes: Array<{ filePath: string; fixedContent: string }>,
-): Promise<boolean> {
+): Promise<{ passed: boolean; extraFixes: Array<{ path: string; content: string }> }> {
   const buildCommand = process.env.BUILD_COMMAND;
-  if (!buildCommand) return true;
+  if (!buildCommand) return { passed: true, extraFixes: [] };
 
   const token = process.env.UI_FIX_GITHUB_TOKEN!;
   const cloneUrl = `https://x-access-token:${token}@github.com/${REPO_OWNER}/${REPO_NAME}.git`;
@@ -71,21 +80,63 @@ async function verifyBuildLocally(
       stdio: "inherit",
     });
 
-    // Apply fixes to the cloned working tree
+    // Apply original UI fixes
     for (const { filePath, fixedContent } of fixes) {
       const dest = join(tmpDir, filePath);
       mkdirSync(dirname(dest), { recursive: true });
       writeFileSync(dest, fixedContent, "utf-8");
     }
 
-    console.log(`  Running: ${buildCommand}`);
-    execSync(buildCommand, { cwd: tmpDir, stdio: "inherit" });
+    // Track files currently in the clone that Claude may update across retries
+    const currentFiles = new Map(fixes.map((f) => [f.filePath, f.fixedContent]));
+    const allExtraFixes: Array<{ path: string; content: string }> = [];
 
-    console.log("  Build passed — proceeding with push");
-    return true;
-  } catch {
-    console.error("  Build FAILED — aborting push. Fix the issues above before retrying.");
-    return false;
+    for (let attempt = 1; attempt <= MAX_BUILD_RETRIES; attempt++) {
+      console.log(`  Build attempt ${attempt}/${MAX_BUILD_RETRIES}: ${buildCommand}`);
+
+      try {
+        execSync(buildCommand, { cwd: tmpDir, stdio: "inherit" });
+        console.log("  Build passed — proceeding with push");
+        return { passed: true, extraFixes: allExtraFixes };
+      } catch (err: any) {
+        const errorOutput: string = [
+          err?.stdout?.toString() ?? "",
+          err?.stderr?.toString() ?? "",
+          String(err),
+        ].join("\n");
+
+        console.error(`  Build failed (attempt ${attempt}):\n${errorOutput.slice(0, 500)}`);
+
+        if (attempt === MAX_BUILD_RETRIES) break;
+
+        console.log("  Asking Claude to fix the build error…");
+
+        const changedFiles = [...currentFiles.entries()].map(([path, content]) => ({ path, content }));
+        const extraFixes = await generateBuildFix({ buildError: errorOutput, changedFiles });
+
+        if (extraFixes.length === 0) {
+          console.error("  Claude has no suggestions — aborting");
+          break;
+        }
+
+        // Apply Claude's build fixes to the clone
+        for (const { path, content } of extraFixes) {
+          const dest = join(tmpDir, path);
+          mkdirSync(dirname(dest), { recursive: true });
+          writeFileSync(dest, content, "utf-8");
+          currentFiles.set(path, content);
+          // Accumulate — later attempts may fix the same files again
+          const existing = allExtraFixes.findIndex((f) => f.path === path);
+          if (existing >= 0) allExtraFixes[existing].content = content;
+          else allExtraFixes.push({ path, content });
+        }
+
+        console.log(`  Applied ${extraFixes.length} build fix(es), retrying…`);
+      }
+    }
+
+    console.error("  Build could not be fixed — aborting push");
+    return { passed: false, extraFixes: [] };
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -140,9 +191,13 @@ async function commitAllAndPush(
         content: fix.fixedContent,
       }],
     });
+    const message = fix.ticketId === 0
+      ? `fix(build): ${fix.component}`
+      : `fix(ui): ${fix.component} [ticket #${fix.ticketId}]`;
+
     const { data: newCommit } = await octokit.git.createCommit({
       owner: REPO_OWNER, repo: REPO_NAME,
-      message: `fix(ui): ${fix.component} [ticket #${fix.ticketId}]`,
+      message,
       tree: newTree.sha,
       parents: [currentSha],
     });
@@ -317,33 +372,50 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
     return;
   }
 
-  // ── Phase 2: build check — push only if the build passes ─────────────────
+  // ── Phase 2: clone → apply fixes → build → auto-fix build errors → push ──
 
-  const buildPassed = await verifyBuildLocally(
+  const { passed: buildPassed, extraFixes } = await verifyBuildWithAutoFix(
     readyFixes.map((f) => ({ filePath: f.filePath, fixedContent: fileCache.get(f.filePath)! })),
   );
 
   if (!buildPassed) {
-    console.log("\nFix Agent done. Push aborted — build failed.");
+    console.log("\nFix Agent done. Push aborted — build could not be fixed.");
     return;
   }
 
   // ── Phase 3: stage N commits, push once ──────────────────────────────────
 
-  console.log(`\n  Pushing ${readyFixes.length} commit(s)…`);
+  const commitsToStage = [
+    // One commit per UI fix ticket
+    ...readyFixes.map((f) => ({
+      filePath: f.filePath,
+      fixedContent: fileCache.get(f.filePath)!,
+      ticketId: f.ticket.id,
+      component: f.ticket.component,
+    })),
+  ];
+
+  // If Claude also fixed build errors, append as one extra commit
+  if (extraFixes.length > 0) {
+    console.log(`  Appending build-error fix commit (${extraFixes.length} file(s))`);
+    // Use ticket id 0 to signal this is a build fix, not a UI ticket
+    // We stage all build-fix files as a single commit by committing them one-by-one
+    // but label them clearly
+    for (const ef of extraFixes) {
+      commitsToStage.push({
+        filePath: ef.path,
+        fixedContent: ef.content,
+        ticketId: 0,
+        component: `build-fix: ${ef.path}`,
+      });
+    }
+  }
+
+  console.log(`\n  Pushing ${commitsToStage.length} commit(s)…`);
 
   let commitSha: string;
   try {
-    commitSha = await commitAllAndPush(
-      octokit,
-      targetBranch,
-      readyFixes.map((f) => ({
-        filePath: f.filePath,
-        fixedContent: fileCache.get(f.filePath)!,
-        ticketId: f.ticket.id,
-        component: f.ticket.component,
-      })),
-    );
+    commitSha = await commitAllAndPush(octokit, targetBranch, commitsToStage);
     console.log(`  Pushed tip: ${commitSha.slice(0, 8)}`);
   } catch (err) {
     console.error("  Push failed:", err);

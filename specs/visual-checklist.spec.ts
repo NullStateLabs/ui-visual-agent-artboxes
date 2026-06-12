@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { insertBugTicket, closePool } from "../src/helpers/db-ticket.js";
+import { upsertBugTicket, closePool } from "../src/helpers/db-ticket.js";
 import { runScenario } from "../src/runner/scenario-runner.js";
 import { runFixAgent } from "../src/agent/fix-agent.js";
 import type { AgentConfig } from "../src/runner/types.js";
@@ -28,11 +28,13 @@ try {
   config = { scenarios: [] };
 }
 
-let ticketsCreated = 0;
+// Count only genuinely NEW tickets — duplicates of already-open issues don't
+// re-trigger the fix agent (they just refresh the screenshot in the DB).
+let newTickets = 0;
 
 test.afterAll(async () => {
-  if (ticketsCreated > 0 && process.env.AUTO_FIX === "true") {
-    console.log(`\nAuto-fix: processing ${ticketsCreated} new ticket(s)…`);
+  if (newTickets > 0 && process.env.AUTO_FIX === "true") {
+    console.log(`\nAuto-fix: ${newTickets} new ticket(s) found — running fix agent…`);
     await runFixAgent({ mode: "bugfix-branch" });
   }
   await closePool();
@@ -44,17 +46,24 @@ for (const scenario of config.scenarios) {
 
     if (!result.pass) {
       for (const finding of result.findings) {
-        const ticketId = await insertBugTicket({
+        const { id: ticketId, isNew } = await upsertBugTicket({
           component: scenario.label,
           file_path: scenario.filePath ?? "",
           assertion: finding.description,
           reasoning: finding.reasoning,
           screenshot_path: screenshotPath,
         });
-        ticketsCreated++;
-        console.error(
-          `  [${finding.severity.toUpperCase()}] Bug ticket #${ticketId}: ${finding.reasoning}`
-        );
+
+        if (isNew) {
+          newTickets++;
+          console.error(
+            `  [${finding.severity.toUpperCase()}] New ticket #${ticketId}: ${finding.reasoning}`
+          );
+        } else {
+          console.warn(
+            `  [${finding.severity.toUpperCase()}] Existing ticket #${ticketId} (screenshot refreshed): ${finding.reasoning}`
+          );
+        }
       }
     }
 
