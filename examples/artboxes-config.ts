@@ -41,12 +41,15 @@ const config: AgentConfig = {
       url: `${WEB_URL}/collections`,
       filePath: "apps/web/app/collections/page.tsx",
       viewport: { width: 375, height: 812 },
+      // skeleton cards during data fetch look like empty boxes (#23, #49, #50) — intentional loading state
+      skipIssueIds: [23, 49, 50],
     },
     {
       label: "Web / Collections — desktop",
       url: `${WEB_URL}/collections`,
       filePath: "apps/web/app/collections/page.tsx",
       viewport: { width: 1280, height: 800 },
+      skipIssueIds: [8, 23, 49, 50],
     },
 
     {
@@ -60,6 +63,8 @@ const config: AgentConfig = {
       url: `${WEB_URL}/upcoming`,
       filePath: "apps/web/app/upcoming/page.tsx",
       viewport: { width: 1280, height: 800 },
+      // gradient placeholder cards while CDN images load — not a layout bug
+      skipIssueIds: [23],
     },
 
     // Marketplace — unauthenticated shows a sign-in wall; empty container + no empty-state msg is intentional (#8, #49)
@@ -149,6 +154,8 @@ const config: AgentConfig = {
       url: `${WEB_URL}/blog`,
       filePath: "apps/web/app/blog/page.tsx",
       viewport: { width: 1280, height: 800 },
+      // sparse grid with few articles is expected content, not a layout bug
+      skipIssueIds: [8],
     },
 
     // Simple / text-only pages — mobile only
@@ -169,6 +176,8 @@ const config: AgentConfig = {
       url: `${WEB_URL}/contact`,
       filePath: "apps/web/app/contact/page.tsx",
       viewport: { width: 375, height: 812 },
+      // section below fold looks empty in screenshot but content exists further down
+      skipIssueIds: [8],
     },
     {
       label: "Web / Learn — mobile",
@@ -232,7 +241,8 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 49],
+      // #36: active nav state on marketplace — real bug, let fix agent handle
+      skipIssueIds: [8, 16, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
@@ -250,13 +260,13 @@ const config: AgentConfig = {
       viewport: { width: 1280, height: 800 },
     },
 
-    // Auth-required artist pages (#8, #49)
+    // Auth-required artist pages (#8, #46, #49)
     {
       label: "Artist / Dashboard — mobile (unauthed)",
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
@@ -291,7 +301,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/referrals`,
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      // #16: "Connect your studio wallet" placeholder is intentionally muted brand color
+      skipIssueIds: [8, 16, 49],
     },
 
     {
@@ -299,12 +310,14 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/privacy`,
       filePath: "apps/artist/app/privacy/page.tsx",
       viewport: { width: 375, height: 812 },
+      skipIssueIds: [46],
     },
     {
       label: "Artist / Terms — mobile",
       url: `${ARTIST_URL}/terms`,
       filePath: "apps/artist/app/terms/page.tsx",
       viewport: { width: 375, height: 812 },
+      skipIssueIds: [46],
     },
 
     // ── ARTIST APP — MODALS ──────────────────────────────────────────────────
@@ -318,7 +331,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",

@@ -125,6 +125,20 @@ async function verifyBuildWithAutoFix(
 
         console.error(`  Build failed (attempt ${attempt}):\n${errorOutput.slice(0, 500)}`);
 
+        // Missing pre-built artifacts (e.g. packages/contracts/dist/) can't be fixed
+        // by editing source files — the user's BUILD_COMMAND must build packages first.
+        if (/Module not found.*dist\//i.test(errorOutput) || /Can't resolve.*\/dist\//i.test(errorOutput)) {
+          console.error(
+            "  ⚠ Build error: pre-built package artifacts are missing.\n" +
+            "  The BUILD_COMMAND must compile dependency packages before the app.\n" +
+            "  Suggested fix: use turbo with the dependency suffix, e.g.\n" +
+            `    turbo run build --filter=${REPO_NAME}...\n` +
+            "  or prefix with the package build:\n" +
+            "    pnpm --filter <packages/your-pkg> build && " + buildCommand
+          );
+          break;
+        }
+
         if (attempt === MAX_BUILD_RETRIES) break;
 
         console.log("  Asking Claude to fix the build error…");
