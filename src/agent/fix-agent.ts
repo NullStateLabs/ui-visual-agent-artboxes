@@ -33,7 +33,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 import { Octokit } from "@octokit/rest";
-import { getOpenTickets, resolveTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
+import { getOpenTickets, resolveTicket, skipTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
 import { generateCodeFix, generateBuildFix } from "../helpers/llm-vision.js";
 
 const REPO_OWNER    = process.env.REPO_OWNER  ?? "NullStateLabs";
@@ -329,15 +329,15 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
   const readyFixes: ReadyFix[] = [];
 
   for (const ticket of tickets) {
-    console.log(`\nGenerating fix for ticket #${ticket.id}: ${ticket.component}`);
-
     if (!ticket.file_path || !ticket.file_path.includes(".")) {
       console.warn(
-        `  Skipping: file_path "${ticket.file_path || "(empty)"}" is not a source file path.\n` +
-        `  Set filePath in your scenario config, e.g. filePath: "app/upcoming/page.tsx"`,
+        `  Ticket #${ticket.id} (${ticket.component}): file_path "${ticket.file_path || "(empty)"}" is not a source file — marking skipped permanently`,
       );
+      await skipTicket(ticket.id);
       continue;
     }
+
+    console.log(`\nGenerating fix for ticket #${ticket.id}: ${ticket.component}`);
 
     try {
       if (!fileCache.has(ticket.file_path)) {

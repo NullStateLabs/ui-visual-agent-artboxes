@@ -67,8 +67,31 @@ export async function getOpenTickets(): Promise<Array<BugTicket & { id: number }
 export async function resolveTicket(id: number): Promise<void> {
   await pool.query(
     `UPDATE ui_bug_tickets SET status = 'resolved', resolved_at = now() WHERE id = $1`,
-    [id]
+    [id],
   );
+}
+
+/** Mark a ticket as permanently skipped — it won't appear in getOpenTickets() again. */
+export async function skipTicket(id: number): Promise<void> {
+  await pool.query(
+    `UPDATE ui_bug_tickets SET status = 'skipped' WHERE id = $1`,
+    [id],
+  );
+}
+
+/**
+ * Mark all open tickets whose file_path is not a real source file (no "." in path)
+ * as 'skipped'. Run once to clean up tickets created before filePath was introduced.
+ * Returns the number of tickets skipped.
+ */
+export async function cleanupBadPathTickets(): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `UPDATE ui_bug_tickets
+     SET status = 'skipped'
+     WHERE status = 'open' AND file_path NOT LIKE '%.%'
+     RETURNING id`,
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function closePool() {
