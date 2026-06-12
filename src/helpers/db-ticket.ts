@@ -1,6 +1,12 @@
 import { Pool } from "pg";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Explicitly set verify-full SSL semantics to silence the pg deprecation warning
+// about 'require'/'prefer' modes changing behavior in pg v9.
+const isLocalhost = (process.env.DATABASE_URL ?? "").includes("localhost");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: isLocalhost ? false : { rejectUnauthorized: true },
+});
 
 export interface BugTicket {
   component: string;

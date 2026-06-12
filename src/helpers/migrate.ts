@@ -10,7 +10,11 @@ async function main() {
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const isLocalhost = process.env.DATABASE_URL.includes("localhost");
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isLocalhost ? false : { rejectUnauthorized: true },
+  });
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ui_bug_tickets (
