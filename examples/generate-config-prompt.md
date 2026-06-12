@@ -2,7 +2,7 @@
 
 Paste the prompt below into Claude **in the context of your target project**.
 Claude will explore the codebase and return a ready-to-use `ui-agent.config.ts`
-that you can copy to the repo root.
+that you can copy to the repo root of `ui-visual-agent`.
 
 ---
 
@@ -12,7 +12,7 @@ Playwright screenshots, checks them against a 50-issue UI checklist via
 Claude Vision, and automatically opens fix PRs.
 
 Your task: analyse this project's structure and generate a complete
-`ui-agent.config.ts` file for the repo root.
+`ui-agent.config.ts` file for the ui-visual-agent repo root.
 
 ---
 
@@ -23,11 +23,11 @@ import type { AgentConfig } from "./src/runner/types.js";
 
 interface Scenario {
   label: string;
-  url: string;
-  filePath?: string;         // path to the source file in this repo responsible for this page
-  steps?: StepAction[];      // clicks / input to perform before the screenshot
+  url: string;           // absolute URL built from env vars — never hardcoded localhost
+  filePath?: string;     // path to the source file in this repo responsible for this page
+  steps?: StepAction[];  // clicks / input to perform before the screenshot
   viewport?: { width: number; height: number };
-  skipIssueIds?: number[];   // issue IDs from the checklist below that are intentional design decisions
+  skipIssueIds?: number[];  // checklist issue IDs that are intentional design decisions
   severityThreshold?: "high" | "medium" | "low";
 }
 ```
@@ -36,48 +36,64 @@ interface Scenario {
 
 Rules for generating the config:
 
-1. **Find all routes** — scan `app/` (or `pages/`) and identify every
-   public route: home, all sections, modals, 404, auth-required pages,
-   empty states.
+1. **Find all routes** — scan `app/` (or `pages/`) in every sub-app and
+   identify every public route: home, all sections, modals, 404,
+   auth-required pages, empty states.
 
 2. **Two viewports per route** — add a mobile scenario (375×812) and a
    desktop scenario (1280×800) for pages with complex layouts. Simple
-   pages (text-only, error pages) need mobile only.
+   pages (text-only, legal, error) need mobile only.
 
-3. **filePath** — set the real relative path to the file in this repo
-   that owns the page layout (e.g. `app/collections/page.tsx`). This is
-   the file the fix agent will edit when it finds a bug on that page.
-   For modal scenarios, point to the modal component file.
+3. **Never hardcode localhost** — always resolve the base URL from an
+   env var. For a single-app project use `process.env.BASE_URL`.
+   For a monorepo with multiple apps define one env var per app and
+   add fallback defaults:
+   ```ts
+   const WEB_URL      = process.env.WEB_URL      ?? "http://localhost:3000";
+   const ARTIST_URL   = process.env.ARTIST_URL   ?? "http://localhost:3001";
+   const PRELAUNCH_URL = process.env.PRELAUNCH_URL ?? "http://localhost:3002";
+   ```
+   Then use template literals for every `url` field:
+   ```ts
+   url: `${WEB_URL}/collections`
+   ```
 
-4. **Modal / dialog scenarios** — if buttons open dialogs, add a
-   separate scenario with steps that trigger the dialog:
+4. **filePath** — set the real relative path to the source file in the
+   target repo that owns this page's layout (e.g.
+   `apps/web/app/collections/page.tsx`). This is the file the fix agent
+   will edit when it finds a bug on that page. For modal scenarios,
+   point to the modal component file instead of the page.
+
+5. **Modal / dialog scenarios** — if buttons open dialogs, add a
+   scenario with steps that trigger the dialog:
    ```ts
    steps: [
-     { action: "click", selector: "button:has-text('Connect')" },
+     { action: "click", selector: "button:has-text('Place offer')" },
      { action: "wait", ms: 600 },
    ]
    ```
-   filePath should point to the modal component, not the page.
+   filePath should point to the modal component.
 
-5. **skipIssueIds** — use this when a page has intentional UI behaviour
-   that would otherwise trigger a false positive. Reference the list below:
-   - 8  — empty container (auth-required pages, intentional empty state)
+6. **skipIssueIds** — use when a page has intentional UI behaviour that
+   would otherwise be a false positive:
+   - 8  — empty container (auth-required / sign-in wall)
    - 11 — intentional text truncation with ellipsis
    - 43 — intentional blur / overlay
    - 46 — icon-only accordion toggle (intentional design)
    - 49 — 404 page has no content by design
 
-6. **severityThreshold** — set `"medium"` or `"high"` for pages where
-   minor visual imperfections are acceptable (e.g. marketing landing pages
-   or pages that are still under active development).
+7. **severityThreshold** — set `"medium"` or `"high"` for pages that
+   are still under active development or are pure marketing pages where
+   minor visual imperfections are acceptable.
 
-7. **routes** (chaos mode) — list the 5–10 most important routes for
-   autonomous exploration. The chaos runner will navigate these pages
-   autonomously, clicking whatever looks interactive.
+8. **routes** (chaos mode) — list 5–10 of the most interactive routes
+   across all apps. The chaos runner will click whatever looks
+   interactive and flag unexpected states. Use the same env var base
+   URLs here.
 
 ---
 
-Full 50-issue checklist (for reference when deciding skipIssueIds):
+Full 50-issue checklist (reference when choosing skipIssueIds):
 
 Layout:        #1 overflow, #2 mobile side-by-side, #3 z-index overlap,
                #4 fixed-width breakage, #5 misalignment, #6 missing padding,
@@ -110,7 +126,7 @@ States:        #40 raw JSON / stack trace visible, #41 frozen spinner,
 Output format:
 
 Return ONLY the ready-to-use TypeScript file — no explanation, no markdown
-fences, just the code starting with the import statement. Inline comments
-are welcome where they explain a non-obvious skipIssueIds or severityThreshold
-choice.
+fences, just the code starting with the env var declarations and import.
+Inline comments are welcome where they explain a non-obvious skipIssueIds,
+severityThreshold, or which env var to set.
 ```
