@@ -17,7 +17,13 @@ export async function runScenario(
   await page.goto(scenario.url, { waitUntil: "load" });
 
   for (const step of scenario.steps ?? []) {
-    await executeStep(page, step);
+    try {
+      await executeStep(page, step);
+    } catch (err: any) {
+      // Element not found or not interactable — log and continue so we still screenshot what's visible
+      const selector = "selector" in step ? step.selector : step.action;
+      console.warn(`  [scenario-runner] Step "${step.action}" on "${selector}" skipped: ${err?.message?.split("\n")[0]}`);
+    }
   }
 
   // Short settle wait after interactions
@@ -38,25 +44,27 @@ export async function runScenario(
   return { screenshotPath, result };
 }
 
+const STEP_TIMEOUT = 10_000;
+
 async function executeStep(page: Page, step: StepAction): Promise<void> {
   switch (step.action) {
     case "click":
-      await page.locator(step.selector).first().click();
+      await page.locator(step.selector).first().click({ timeout: STEP_TIMEOUT });
       break;
     case "hover":
-      await page.locator(step.selector).first().hover();
+      await page.locator(step.selector).first().hover({ timeout: STEP_TIMEOUT });
       break;
     case "fill":
-      await page.locator(step.selector).first().fill(step.value);
+      await page.locator(step.selector).first().fill(step.value, { timeout: STEP_TIMEOUT });
       break;
     case "wait":
       await page.waitForTimeout(step.ms);
       break;
     case "scroll":
-      await page.locator(step.selector).first().scrollIntoViewIfNeeded();
+      await page.locator(step.selector).first().scrollIntoViewIfNeeded({ timeout: STEP_TIMEOUT });
       break;
     case "press":
-      await page.locator(step.selector).first().press(step.key);
+      await page.locator(step.selector).first().press(step.key, { timeout: STEP_TIMEOUT });
       break;
   }
 }

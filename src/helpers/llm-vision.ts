@@ -213,12 +213,13 @@ export async function generateBuildFix(opts: {
   });
 
   const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const match = raw.match(/\[[\s\S]*\]/);
+  const cleaned = match ? match[0] : "[]";
 
   try {
     return JSON.parse(cleaned) as Array<{ path: string; content: string }>;
   } catch {
-    console.error("generateBuildFix: non-JSON response:", raw);
+    console.error("generateBuildFix: non-JSON response:", raw.slice(0, 300));
     return [];
   }
 }
