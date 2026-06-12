@@ -17,9 +17,9 @@
  *   ANTHROPIC_API_KEY     — Anthropic API key (or set MOCK_LLM=true to skip)
  *
  * Optional:
- *   GITHUB_REPO_OWNER  — defaults to "NullStateLabs"
- *   GITHUB_REPO_NAME   — defaults to "artboxes"
- *   GITHUB_BASE_BRANCH — defaults to "main"
+ *   REPO_OWNER   — defaults to "NullStateLabs"
+ *   REPO_NAME    — defaults to "artboxes"
+ *   REPO_BRANCH  — defaults to "main"
  */
 
 import { fileURLToPath } from "url";
@@ -27,9 +27,9 @@ import { Octokit } from "@octokit/rest";
 import { getOpenTickets, resolveTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
 import { generateCodeFix } from "../helpers/llm-vision.js";
 
-const REPO_OWNER = process.env.GITHUB_REPO_OWNER ?? "NullStateLabs";
-const REPO_NAME = process.env.GITHUB_REPO_NAME ?? "artboxes";
-const BASE_BRANCH = process.env.GITHUB_BASE_BRANCH ?? "main";
+const REPO_OWNER = process.env.REPO_OWNER ?? "NullStateLabs";
+const REPO_NAME = process.env.REPO_NAME ?? "artboxes";
+const BASE_BRANCH = process.env.REPO_BRANCH ?? "main";
 const BUGFIX_BRANCH = "bugfix";
 
 function getOctokit(): Octokit {
@@ -174,7 +174,14 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
     return;
   }
 
-  const octokit = getOctokit();
+  let octokit: Octokit;
+  try {
+    octokit = getOctokit();
+  } catch (err) {
+    console.warn(`Fix Agent: ${err} — skipping`);
+    return;
+  }
+
   const tickets = await getOpenTickets();
   console.log(`Found ${tickets.length} open ticket(s)`);
 
@@ -182,8 +189,17 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
 
   const targetBranch = mode === "direct" ? BASE_BRANCH : BUGFIX_BRANCH;
 
+  console.log(`  Target: ${REPO_OWNER}/${REPO_NAME} @ ${targetBranch}`);
+
   if (mode === "bugfix-branch") {
-    await ensureBugfixBranch(octokit);
+    try {
+      await ensureBugfixBranch(octokit);
+    } catch (err) {
+      console.error(
+        `Fix Agent: cannot access ${REPO_OWNER}/${REPO_NAME} — check REPO_OWNER, REPO_NAME variables and UI_FIX_GITHUB_TOKEN permissions.\n  Error: ${err}`
+      );
+      return;
+    }
   }
 
   const fixed: Array<BugTicket & { id: number }> = [];

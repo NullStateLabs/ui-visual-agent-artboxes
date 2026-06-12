@@ -1,6 +1,15 @@
 import { Pool } from "pg";
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error(
+      "ERROR: DATABASE_URL is not set.\n" +
+      "  → Locally: add it to .env\n" +
+      "  → GitHub Actions: Settings → Secrets and variables → Actions → Repository secrets → New repository secret"
+    );
+    process.exit(1);
+  }
+
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
   await pool.query(`

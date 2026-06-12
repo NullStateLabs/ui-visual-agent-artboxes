@@ -101,9 +101,9 @@ Go to: **github.com/YOUR-ORG/ui-visual-agent → Settings → Secrets and variab
 
 | Name | Value |
 |---|---|
-| `GITHUB_REPO_OWNER` | e.g. `NullStateLabs` |
-| `GITHUB_REPO_NAME` | e.g. `artboxes` |
-| `GITHUB_BASE_BRANCH` | `main` |
+| `REPO_OWNER` | e.g. `NullStateLabs` |
+| `REPO_NAME` | e.g. `artboxes` |
+| `REPO_BRANCH` | `main` |
 
 ### 5. Create the config file for your project
 
@@ -207,9 +207,9 @@ pnpm migrate
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `DATABASE_URL` | Postgres connection string |
 | `UI_FIX_GITHUB_TOKEN` | GitHub PAT with `repo` scope (Contents + Pull requests write) |
-| `GITHUB_REPO_OWNER` | Target repo owner, e.g. `NullStateLabs` |
-| `GITHUB_REPO_NAME` | Target repo name, e.g. `artboxes` |
-| `GITHUB_BASE_BRANCH` | Base branch, default `main` |
+| `REPO_OWNER` | Target repo owner, e.g. `NullStateLabs` |
+| `REPO_NAME` | Target repo name, e.g. `artboxes` |
+| `REPO_BRANCH` | Base branch, default `main` |
 | `MOCK_LLM` | Set `true` to skip real API calls during pipeline testing |
 
 ---
@@ -332,9 +332,9 @@ Chaos fixes are committed **directly to `main`**, not a branch. Only enable this
 
 | Variable | Value |
 |---|---|
-| `GITHUB_REPO_OWNER` | e.g. `NullStateLabs` |
-| `GITHUB_REPO_NAME` | e.g. `artboxes` |
-| `GITHUB_BASE_BRANCH` | e.g. `main` |
+| `REPO_OWNER` | e.g. `NullStateLabs` |
+| `REPO_NAME` | e.g. `artboxes` |
+| `REPO_BRANCH` | e.g. `main` |
 
 ---
 

@@ -24,6 +24,8 @@ jobs:
     name: Autonomous UI exploration + direct-to-main fixes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -48,6 +50,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Debug — check secrets are set
+        run: |
+          echo "BASE_URL set:            ${{ secrets.BASE_URL != '' }}"
+          echo "ANTHROPIC_API_KEY set:   ${{ secrets.ANTHROPIC_API_KEY != '' }}"
+          echo "DATABASE_URL set:        ${{ secrets.DATABASE_URL != '' }}"
+          echo "UI_FIX_GITHUB_TOKEN set: ${{ secrets.UI_FIX_GITHUB_TOKEN != '' }}"
+          echo "REPO_OWNER: ${{ vars.REPO_OWNER }}"
+          echo "REPO_NAME:  ${{ vars.REPO_NAME }}"
+
       - name: Run chaos tests + auto-fix directly to main
         run: pnpm test:chaos:ci
         env:
@@ -55,9 +66,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           UI_FIX_GITHUB_TOKEN: ${{ secrets.UI_FIX_GITHUB_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ vars.GITHUB_REPO_OWNER }}
-          GITHUB_REPO_NAME: ${{ vars.GITHUB_REPO_NAME }}
-          GITHUB_BASE_BRANCH: ${{ vars.GITHUB_BASE_BRANCH || 'main' }}
+          REPO_OWNER: ${{ vars.REPO_OWNER }}
+          REPO_NAME: ${{ vars.REPO_NAME }}
+          REPO_BRANCH: ${{ vars.REPO_BRANCH || 'main' }}
           CHAOS_STEPS: ${{ github.event.inputs.steps || '12' }}
 
       - name: Upload chaos screenshots
@@ -67,3 +78,4 @@ jobs:
           name: chaos-screenshots-${{ github.run_id }}
           path: screenshots/chaos/
           retention-days: 7
+          if-no-files-found: warn
