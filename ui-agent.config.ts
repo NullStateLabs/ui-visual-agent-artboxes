@@ -1,323 +1,364 @@
 import type { AgentConfig } from "./src/runner/types.js";
 
+declare const process: { env: Record<string, string | undefined> };
+
+
+const WEB_URL    = process.env.WEB_URL    ?? "https://demo.boxes.art";
+const ARTIST_URL = process.env.ARTIST_URL ?? "https://artboxes-artist.vercel.app";
+
 const config: AgentConfig = {
   scenarios: [
-    // ── Mobile: core marketing pages ──────────────────────────────────
+    // ── WEB APP ───────────────────────────────────────────────────────────────
+
     {
-      label: "home — mobile",
-      url: "/",
+      label: "Web / Home — mobile",
+      url: `${WEB_URL}`,
+      filePath: "apps/web/app/page.tsx",
       viewport: { width: 375, height: 812 },
     },
     {
-      label: "learn — mobile",
-      url: "/learn",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "about — mobile",
-      url: "/about",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "faq — mobile",
-      url: "/faq",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "blog — mobile",
-      url: "/blog",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "contact — mobile",
-      url: "/contact",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "help — mobile",
-      url: "/help",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "careers — mobile",
-      url: "/careers",
-      viewport: { width: 375, height: 812 },
+      label: "Web / Home — desktop",
+      url: `${WEB_URL}`,
+      filePath: "apps/web/app/page.tsx",
+      viewport: { width: 1280, height: 800 },
     },
 
-    // ── Mobile: product pages ─────────────────────────────────────────
     {
-      label: "collections — mobile",
-      url: "/collections",
+      label: "Web / Collections — mobile",
+      url: `${WEB_URL}/collections`,
+      filePath: "apps/web/app/collections/page.tsx",
       viewport: { width: 375, height: 812 },
-      severityThreshold: "medium",
-      // Issue #49 (empty state) fires because the local Prisma schema
-      // is missing the finalClaimDate column — collections don't load in dev.
-      // In production CI this passes fine. Skip until schema is synced.
-      skipIssueIds: [49],
     },
     {
-      label: "marketplace — mobile",
-      url: "/marketplace",
-      viewport: { width: 375, height: 812 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "upcoming — mobile",
-      url: "/upcoming",
-      viewport: { width: 375, height: 812 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
+      label: "Web / Collections — desktop",
+      url: `${WEB_URL}/collections`,
+      filePath: "apps/web/app/collections/page.tsx",
+      viewport: { width: 1280, height: 800 },
     },
 
-    // ── Mobile: auth-gated pages (unauthenticated state) ──────────────
     {
-      label: "shipping — unauthenticated — mobile",
-      url: "/shipping",
+      label: "Web / Upcoming — mobile",
+      url: `${WEB_URL}/upcoming`,
+      filePath: "apps/web/app/upcoming/page.tsx",
       viewport: { width: 375, height: 812 },
-      // Renders "Sign in to manage your shipping address" centred message
+    },
+    {
+      label: "Web / Upcoming — desktop",
+      url: `${WEB_URL}/upcoming`,
+      filePath: "apps/web/app/upcoming/page.tsx",
+      viewport: { width: 1280, height: 800 },
+    },
+
+    // Marketplace — unauthenticated shows a Privy sign-in wall; empty container is intentional (#8)
+    {
+      label: "Web / Marketplace — mobile (unauthed)",
+      url: `${WEB_URL}/marketplace`,
+      filePath: "apps/web/app/marketplace/page.tsx",
+      viewport: { width: 375, height: 812 },
       skipIssueIds: [8],
     },
     {
-      label: "dashboard — unauthenticated — mobile",
-      url: "/dashboard",
+      label: "Web / Marketplace — desktop (unauthed)",
+      url: `${WEB_URL}/marketplace`,
+      filePath: "apps/web/app/marketplace/page.tsx",
+      viewport: { width: 1280, height: 800 },
+      skipIssueIds: [8],
+    },
+
+    // Auth-required buyer pages — all render a Privy sign-in wall (#8 intentional)
+    {
+      label: "Web / Dashboard — mobile (unauthed)",
+      url: `${WEB_URL}/dashboard`,
+      filePath: "apps/web/app/dashboard/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Web / Dashboard — desktop (unauthed)",
+      url: `${WEB_URL}/dashboard`,
+      filePath: "apps/web/app/dashboard/page.tsx",
+      viewport: { width: 1280, height: 800 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Web / Profile — mobile (unauthed)",
+      url: `${WEB_URL}/profile`,
+      filePath: "apps/web/app/profile/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Web / Wallet — mobile (unauthed)",
+      url: `${WEB_URL}/wallet`,
+      filePath: "apps/web/app/wallet/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Web / History — mobile (unauthed)",
+      url: `${WEB_URL}/history`,
+      filePath: "apps/web/app/history/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Web / Shipping — mobile (unauthed)",
+      url: `${WEB_URL}/shipping`,
+      filePath: "apps/web/app/shipping/page.tsx",
       viewport: { width: 375, height: 812 },
       skipIssueIds: [8],
     },
 
-    // ── Mobile: error states ──────────────────────────────────────────
+    // FAQ — accordion toggles are icon-only chevrons by design (#46)
     {
-      label: "404 page — mobile",
-      url: "/this-page-does-not-exist",
+      label: "Web / FAQ — mobile",
+      url: `${WEB_URL}/faq`,
+      filePath: "apps/web/app/faq/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [49],
-    },
-
-    // ── Desktop: core marketing pages ────────────────────────────────
-    {
-      label: "home — desktop",
-      url: "/",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "learn — desktop",
-      url: "/learn",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "about — desktop",
-      url: "/about",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "faq — desktop",
-      url: "/faq",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "blog — desktop",
-      url: "/blog",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "contact — desktop",
-      url: "/contact",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "help — desktop",
-      url: "/help",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-    },
-
-    // ── Desktop: product pages ────────────────────────────────────────
-    {
-      label: "collections — desktop",
-      url: "/collections",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "marketplace — desktop",
-      url: "/marketplace",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "upcoming — desktop",
-      url: "/upcoming",
-      viewport: { width: 1280, height: 800 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-
-    // ── Desktop: wide viewport (1440) ─────────────────────────────────
-    {
-      label: "home — wide desktop",
-      url: "/",
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "collections — wide desktop",
-      url: "/collections",
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "marketplace — wide desktop",
-      url: "/marketplace",
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-      skipIssueIds: [49, 11],
-    },
-
-    // ── Mobile: interactive scenarios ─────────────────────────────────
-    {
-      label: "sign in modal — mobile",
-      url: "/",
-      viewport: { width: 375, height: 812 },
-      steps: [
-        { action: "click", selector: "button:has-text('Sign In')" },
-        { action: "wait", ms: 800 },
-      ],
-      skipIssueIds: [43],
-    },
-    {
-      label: "faq accordion — first item expanded — mobile",
-      url: "/faq",
-      viewport: { width: 375, height: 812 },
-      steps: [
-        // <details><summary> accordion — .first() in the runner picks the first match
-        { action: "click", selector: "details summary" },
-        { action: "wait", ms: 300 },
-      ],
       skipIssueIds: [46],
     },
     {
-      label: "home hero carousel — second page — mobile",
-      url: "/",
+      label: "Web / FAQ — desktop",
+      url: `${WEB_URL}/faq`,
+      filePath: "apps/web/app/faq/page.tsx",
+      viewport: { width: 1280, height: 800 },
+      skipIssueIds: [46],
+    },
+
+    {
+      label: "Web / Blog — mobile",
+      url: `${WEB_URL}/blog`,
+      filePath: "apps/web/app/blog/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Blog — desktop",
+      url: `${WEB_URL}/blog`,
+      filePath: "apps/web/app/blog/page.tsx",
+      viewport: { width: 1280, height: 800 },
+    },
+
+    // Simple / text-only pages — mobile viewport only
+    {
+      label: "Web / About — mobile",
+      url: `${WEB_URL}/about`,
+      filePath: "apps/web/app/about/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Careers — mobile",
+      url: `${WEB_URL}/careers`,
+      filePath: "apps/web/app/careers/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Contact — mobile",
+      url: `${WEB_URL}/contact`,
+      filePath: "apps/web/app/contact/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Learn — mobile",
+      url: `${WEB_URL}/learn`,
+      filePath: "apps/web/app/learn/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Help — mobile",
+      url: `${WEB_URL}/help`,
+      filePath: "apps/web/app/help/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    // Docs / Developers are actively evolving — medium threshold acceptable
+    {
+      label: "Web / Developers — mobile",
+      url: `${WEB_URL}/developers`,
+      filePath: "apps/web/app/developers/page.tsx",
+      viewport: { width: 375, height: 812 },
+      severityThreshold: "medium",
+    },
+    {
+      label: "Web / Docs — mobile",
+      url: `${WEB_URL}/docs`,
+      filePath: "apps/web/app/docs/page.tsx",
+      viewport: { width: 375, height: 812 },
+      severityThreshold: "medium",
+    },
+    {
+      label: "Web / Privacy — mobile",
+      url: `${WEB_URL}/privacy`,
+      filePath: "apps/web/app/privacy/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Terms — mobile",
+      url: `${WEB_URL}/terms`,
+      filePath: "apps/web/app/terms/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Trademark — mobile",
+      url: `${WEB_URL}/trademark`,
+      filePath: "apps/web/app/trademark/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Web / Unsubscribe — mobile",
+      url: `${WEB_URL}/mailing-list/unsubscribe`,
+      filePath: "apps/web/app/mailing-list/unsubscribe/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+
+    // ── WEB APP MODALS ────────────────────────────────────────────────────────
+
+    // PlaceOfferModal — launched from marketplace; Privy may intercept (#8)
+    {
+      label: "Web / PlaceOfferModal — mobile",
+      url: `${WEB_URL}/marketplace`,
+      filePath: "apps/web/components/marketplace/PlaceOfferModal.tsx",
       viewport: { width: 375, height: 812 },
       steps: [
-        { action: "wait", ms: 1500 },
-        { action: "click", selector: "button[aria-label='Next collections']" },
+        { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
+      skipIssueIds: [8],
     },
     {
-      label: "collections search filter — mobile",
-      url: "/collections",
+      label: "Web / PlaceOfferModal — desktop",
+      url: `${WEB_URL}/marketplace`,
+      filePath: "apps/web/components/marketplace/PlaceOfferModal.tsx",
+      viewport: { width: 1280, height: 800 },
+      steps: [
+        { action: "click", selector: "button:has-text('Place offer')" },
+        { action: "wait", ms: 600 },
+      ],
+      skipIssueIds: [8],
+    },
+
+    // ── ARTIST APP ────────────────────────────────────────────────────────────
+
+    {
+      label: "Artist / Home — mobile",
+      url: `${ARTIST_URL}`,
+      filePath: "apps/artist/app/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Artist / Home — desktop",
+      url: `${ARTIST_URL}`,
+      filePath: "apps/artist/app/page.tsx",
+      viewport: { width: 1280, height: 800 },
+    },
+
+    // Auth-required artist pages — all render a Privy sign-in wall (#8 intentional)
+    {
+      label: "Artist / Dashboard — mobile (unauthed)",
+      url: `${ARTIST_URL}/dashboard`,
+      filePath: "apps/artist/app/dashboard/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Artist / Dashboard — desktop (unauthed)",
+      url: `${ARTIST_URL}/dashboard`,
+      filePath: "apps/artist/app/dashboard/page.tsx",
+      viewport: { width: 1280, height: 800 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Artist / Earnings — mobile (unauthed)",
+      url: `${ARTIST_URL}/earnings`,
+      filePath: "apps/artist/app/earnings/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Artist / Earnings — desktop (unauthed)",
+      url: `${ARTIST_URL}/earnings`,
+      filePath: "apps/artist/app/earnings/page.tsx",
+      viewport: { width: 1280, height: 800 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Artist / Claims — mobile (unauthed)",
+      url: `${ARTIST_URL}/claims`,
+      filePath: "apps/artist/app/claims/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+    {
+      label: "Artist / Referrals — mobile (unauthed)",
+      url: `${ARTIST_URL}/referrals`,
+      filePath: "apps/artist/app/referrals/page.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+
+    {
+      label: "Artist / Privacy — mobile",
+      url: `${ARTIST_URL}/privacy`,
+      filePath: "apps/artist/app/privacy/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+    {
+      label: "Artist / Terms — mobile",
+      url: `${ARTIST_URL}/terms`,
+      filePath: "apps/artist/app/terms/page.tsx",
+      viewport: { width: 375, height: 812 },
+    },
+
+    // ── ARTIST APP MODALS ─────────────────────────────────────────────────────
+
+    // AddSocialsModal — button lives on the artist dashboard; Privy intercepts (#8)
+    {
+      label: "Artist / AddSocialsModal — mobile",
+      url: `${ARTIST_URL}/dashboard`,
+      filePath: "apps/artist/components/socials/AddSocialsModal.tsx",
       viewport: { width: 375, height: 812 },
       steps: [
-        { action: "wait", ms: 1200 },
-        {
-          action: "fill",
-          selector: "input[placeholder='Search by title or artist…']",
-          value: "paint",
-        },
-        { action: "wait", ms: 500 },
+        { action: "click", selector: "button:has-text('Add socials')" },
+        { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [49],
+      skipIssueIds: [8],
     },
 
-    // ── Desktop: interactive scenarios ────────────────────────────────
+    // WithdrawModal — triggered from earnings page; Privy intercepts (#8)
     {
-      label: "sign in modal — desktop",
-      url: "/",
-      viewport: { width: 1280, height: 800 },
+      label: "Artist / WithdrawModal — mobile",
+      url: `${ARTIST_URL}/earnings`,
+      filePath: "apps/artist/components/earnings/WithdrawModal.tsx",
+      viewport: { width: 375, height: 812 },
       steps: [
-        { action: "click", selector: "button:has-text('Sign In')" },
-        { action: "wait", ms: 800 },
+        { action: "click", selector: "button:has-text('Withdraw')" },
+        { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [9],
+      skipIssueIds: [8],
     },
     {
-      label: "global search with query — desktop",
-      url: "/",
+      label: "Artist / WithdrawModal — desktop",
+      url: `${ARTIST_URL}/earnings`,
+      filePath: "apps/artist/components/earnings/WithdrawModal.tsx",
       viewport: { width: 1280, height: 800 },
       steps: [
-        {
-          action: "fill",
-          selector: "input[placeholder='Search collections, artists…']",
-          value: "art",
-        },
-        { action: "wait", ms: 700 },
+        { action: "click", selector: "button:has-text('Withdraw')" },
+        { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [3, 11],
-    },
-    {
-      label: "faq accordion — first item expanded — desktop",
-      url: "/faq",
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        { action: "click", selector: "details summary" },
-        { action: "wait", ms: 300 },
-      ],
-      severityThreshold: "medium",
-    },
-    {
-      label: "home — how it works section — desktop",
-      url: "/",
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        { action: "wait", ms: 1000 },
-        // Scroll "How it works" step cards into view
-        { action: "scroll", selector: "text=How it works" },
-        { action: "wait", ms: 400 },
-      ],
-      severityThreshold: "medium",
+      skipIssueIds: [8],
     },
 
-    // ── Tablet breakpoint (768) ───────────────────────────────────────
-    {
-      label: "home — tablet",
-      url: "/",
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "collections — tablet",
-      url: "/collections",
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "faq — tablet",
-      url: "/faq",
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-    },
   ],
 
-  // ── Chaos mode routes ─────────────────────────────────────────────
-  // Claude autonomously explores each route, clicking wherever it finds
-  // interesting UI elements. Falls back to /sitemap.xml if omitted.
+  // ── CHAOS ROUTES ───────────────────────────────────────────────────────────
+  // Most interactive pages across both apps. The chaos runner clicks
+  // anything that looks interactive and flags unexpected states.
   routes: [
-    "/",
-    "/collections",
-    "/marketplace",
-    "/upcoming",
-    "/learn",
-    "/about",
-    "/faq",
-    "/blog",
-    "/contact",
-    "/help",
-    "/careers",
-    "/shipping",
-    "/dashboard",
-    "/this-page-does-not-exist",
+    `${WEB_URL}`,                   // Web home — nav, hero CTA
+    `${WEB_URL}/collections`,       // Collection grid + filters
+    `${WEB_URL}/marketplace`,       // Offer flows, listing cards
+    `${WEB_URL}/faq`,               // Accordion interactions
+    `${WEB_URL}/blog`,              // Cards, pagination
+    `${ARTIST_URL}`,                // Artist landing — sign-up CTA
+    `${ARTIST_URL}/dashboard`,      // Auth wall + dashboard CTAs
   ],
 };
 
