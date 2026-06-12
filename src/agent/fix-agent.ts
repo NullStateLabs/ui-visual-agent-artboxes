@@ -4,11 +4,13 @@
  * Two modes:
  *
  *   'bugfix-branch' (default, nightly):
- *     All fixes committed in ONE batch commit to a single 'bugfix' branch.
- *     CI is polled after the push. PR opened (or updated) once checks pass.
+ *     1. Generate all code fixes in memory
+ *     2. Clone the target repo, apply fixes, run BUILD_COMMAND
+ *     3. If build passes → stage N commits (one per ticket), ONE push
+ *     4. Open / update PR on the 'bugfix' branch
  *
  *   'direct' (chaos / battle-hardening):
- *     One batch commit applied directly to the base branch. No PR.
+ *     Same build check, then one push straight to the base branch. No PR.
  *
  * Required env vars:
  *   DATABASE_URL          — Postgres connection string
@@ -16,21 +18,27 @@
  *   ANTHROPIC_API_KEY     — Anthropic API key (or set MOCK_LLM=true to skip)
  *
  * Optional:
- *   REPO_OWNER   — defaults to "NullStateLabs"
- *   REPO_NAME    — defaults to "artboxes"
- *   REPO_BRANCH  — defaults to "main"
- *   WAIT_FOR_CI  — set "true" to poll GitHub Checks after push and only open
- *                  the PR once all checks pass (timeout: 10 min)
+ *   REPO_OWNER      — defaults to "NullStateLabs"
+ *   REPO_NAME       — defaults to "artboxes"
+ *   REPO_BRANCH     — defaults to "main"
+ *   BUILD_COMMAND   — shell command to verify the build before pushing,
+ *                     e.g. "pnpm install --frozen-lockfile && pnpm build"
+ *                     Runs inside a shallow clone of the target repo.
+ *                     If unset, build check is skipped.
  */
 
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { join, dirname } from "path";
+import { tmpdir } from "os";
 import { Octokit } from "@octokit/rest";
 import { getOpenTickets, resolveTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
 import { generateCodeFix } from "../helpers/llm-vision.js";
 
-const REPO_OWNER  = process.env.REPO_OWNER  ?? "NullStateLabs";
-const REPO_NAME   = process.env.REPO_NAME   ?? "artboxes";
-const BASE_BRANCH = process.env.REPO_BRANCH ?? "main";
+const REPO_OWNER    = process.env.REPO_OWNER  ?? "NullStateLabs";
+const REPO_NAME     = process.env.REPO_NAME   ?? "artboxes";
+const BASE_BRANCH   = process.env.REPO_BRANCH ?? "main";
 const BUGFIX_BRANCH = "bugfix";
 
 function getOctokit(): Octokit {
@@ -39,7 +47,51 @@ function getOctokit(): Octokit {
   return new Octokit({ auth: token });
 }
 
-// ── GitHub Git Tree API ───────────────────────────────────────────────────────
+// ── Local build check ─────────────────────────────────────────────────────────
+
+/**
+ * Clone the target repo, apply all pending fixes to the working tree,
+ * run BUILD_COMMAND. Returns true if the build passes, false otherwise.
+ * Returns true immediately if BUILD_COMMAND is not set.
+ */
+async function verifyBuildLocally(
+  fixes: Array<{ filePath: string; fixedContent: string }>,
+): Promise<boolean> {
+  const buildCommand = process.env.BUILD_COMMAND;
+  if (!buildCommand) return true;
+
+  const token = process.env.UI_FIX_GITHUB_TOKEN!;
+  const cloneUrl = `https://x-access-token:${token}@github.com/${REPO_OWNER}/${REPO_NAME}.git`;
+  const tmpDir = mkdtempSync(join(tmpdir(), "ui-fix-"));
+
+  console.log(`\n  Cloning ${REPO_OWNER}/${REPO_NAME} to verify build before pushing…`);
+
+  try {
+    execSync(`git clone --depth 1 --branch ${BASE_BRANCH} ${cloneUrl} ${tmpDir}`, {
+      stdio: "inherit",
+    });
+
+    // Apply fixes to the cloned working tree
+    for (const { filePath, fixedContent } of fixes) {
+      const dest = join(tmpDir, filePath);
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, fixedContent, "utf-8");
+    }
+
+    console.log(`  Running: ${buildCommand}`);
+    execSync(buildCommand, { cwd: tmpDir, stdio: "inherit" });
+
+    console.log("  Build passed — proceeding with push");
+    return true;
+  } catch {
+    console.error("  Build FAILED — aborting push. Fix the issues above before retrying.");
+    return false;
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+// ── GitHub Git API ────────────────────────────────────────────────────────────
 
 async function getFileContent(
   octokit: Octokit,
@@ -56,50 +108,56 @@ async function getFileContent(
 }
 
 /**
- * Push all changed files as a SINGLE commit on the target branch.
- * One push → one Vercel preview → one email (at most).
- * Returns the new commit SHA.
+ * Stage N commits (one per ticket) then push ONCE.
+ *
+ * git.createCommit  — stores a commit object in GitHub's object store.
+ *                     No push. No Vercel trigger.
+ * git.updateRef     — the actual push. Called once at the very end.
+ *
+ * One push = one Vercel preview = one email.
  */
-async function batchCommit(
+async function commitAllAndPush(
   octokit: Octokit,
   branch: string,
-  files: Array<{ path: string; content: string }>,
-  message: string,
+  fixes: Array<{ filePath: string; fixedContent: string; ticketId: number; component: string }>,
 ): Promise<string> {
   const { data: refData } = await octokit.git.getRef({
     owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${branch}`,
   });
-  const headSha = refData.object.sha;
+  let currentSha = refData.object.sha;
 
-  const { data: headCommit } = await octokit.git.getCommit({
-    owner: REPO_OWNER, repo: REPO_NAME, commit_sha: headSha,
-  });
+  for (const fix of fixes) {
+    const { data: parentCommit } = await octokit.git.getCommit({
+      owner: REPO_OWNER, repo: REPO_NAME, commit_sha: currentSha,
+    });
+    const { data: newTree } = await octokit.git.createTree({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      base_tree: parentCommit.tree.sha,
+      tree: [{
+        path: fix.filePath,
+        mode: "100644" as const,
+        type: "blob" as const,
+        content: fix.fixedContent,
+      }],
+    });
+    const { data: newCommit } = await octokit.git.createCommit({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      message: `fix(ui): ${fix.component} [ticket #${fix.ticketId}]`,
+      tree: newTree.sha,
+      parents: [currentSha],
+    });
+    currentSha = newCommit.sha;
+    console.log(`  Staged: ${newCommit.sha.slice(0, 8)} — ${fix.component}`);
+  }
 
-  const { data: newTree } = await octokit.git.createTree({
-    owner: REPO_OWNER, repo: REPO_NAME,
-    base_tree: headCommit.tree.sha,
-    tree: files.map(({ path, content }) => ({
-      path,
-      mode: "100644" as const,
-      type: "blob" as const,
-      content,
-    })),
-  });
-
-  const { data: newCommit } = await octokit.git.createCommit({
-    owner: REPO_OWNER, repo: REPO_NAME,
-    message,
-    tree: newTree.sha,
-    parents: [headSha],
-  });
-
+  // The one and only push
   await octokit.git.updateRef({
     owner: REPO_OWNER, repo: REPO_NAME,
     ref: `heads/${branch}`,
-    sha: newCommit.sha,
+    sha: currentSha,
   });
 
-  return newCommit.sha;
+  return currentSha;
 }
 
 async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
@@ -121,67 +179,11 @@ async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
   }
 }
 
-// ── CI polling ────────────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Poll GitHub Checks for the given commit SHA until all complete or timeout.
- * Returns true if all checks passed (or timed out — we don't block on timeout).
- */
-async function waitForCI(
-  octokit: Octokit,
-  ref: string,
-  timeoutMs = 10 * 60 * 1000,
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  console.log(`\n  Waiting for CI checks on ${ref.slice(0, 8)}… (timeout: ${timeoutMs / 60_000} min)`);
-
-  await sleep(15_000); // let GitHub register the push
-
-  while (Date.now() < deadline) {
-    const { data } = await octokit.checks.listForRef({
-      owner: REPO_OWNER, repo: REPO_NAME, ref,
-    });
-    const runs = data.check_runs;
-
-    if (runs.length === 0) {
-      console.log("  No checks registered yet, retrying…");
-      await sleep(20_000);
-      continue;
-    }
-
-    const pending = runs.filter((r) => r.status !== "completed");
-    if (pending.length > 0) {
-      console.log(`  ${pending.length} check(s) still running…`);
-      await sleep(30_000);
-      continue;
-    }
-
-    const failed = runs.filter(
-      (r) => r.conclusion !== "success" && r.conclusion !== "skipped" && r.conclusion !== "neutral",
-    );
-    if (failed.length > 0) {
-      console.error(`  CI failed: ${failed.map((r) => `${r.name} (${r.conclusion})`).join(", ")}`);
-      return false;
-    }
-
-    console.log(`  All ${runs.length} CI check(s) passed`);
-    return true;
-  }
-
-  console.warn(`  CI timed out after ${timeoutMs / 60_000} min — proceeding anyway`);
-  return true; // non-blocking timeout
-}
-
 // ── PR management ─────────────────────────────────────────────────────────────
 
 async function ensureBugfixPR(
   octokit: Octokit,
   fixed: Array<BugTicket & { id: number }>,
-  ciPassed: boolean,
 ): Promise<string> {
   const { data: existing } = await octokit.pulls.list({
     owner: REPO_OWNER, repo: REPO_NAME,
@@ -190,15 +192,12 @@ async function ensureBugfixPR(
     state: "open",
   });
 
-  const ciWarning = ciPassed ? "" : "\n\n> ⚠️ **CI did not pass** — review failures before merging.";
-
   const body = [
     `## UI Bug Fixes — auto-generated`,
     ``,
     ...fixed.map((t) => `- **\`${t.component}\`** — ticket #${t.id}: ${t.reasoning}`),
     ``,
-    `> Fixes generated by the visual testing pipeline. Review before merging.`,
-    ciWarning,
+    `> Build verified locally before push. Review and merge.`,
   ].join("\n");
 
   if (existing.length > 0) {
@@ -226,17 +225,9 @@ async function ensureBugfixPR(
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export interface FixAgentOpts {
-  /**
-   * 'bugfix-branch' (default): all fixes in one batch commit → CI poll → one PR.
-   * 'direct': one batch commit straight to the base branch. No PR.
-   */
   mode?: "bugfix-branch" | "direct";
 }
 
-/**
- * Process all open bug tickets.
- * Does NOT close the Postgres pool — the caller is responsible for that.
- */
 export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
   const mode = opts.mode ?? "bugfix-branch";
   console.log(`Fix Agent starting… (mode: ${mode})`);
@@ -272,10 +263,8 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
     }
   }
 
-  // ── Phase 1: generate all fixes locally (zero pushes) ────────────────────
+  // ── Phase 1: generate all fixes in memory (zero network writes) ───────────
 
-  // Cache file contents per path so multiple tickets on the same file chain:
-  // ticket A patches the file → ticket B receives the already-patched version.
   const fileCache = new Map<string, string>();
 
   interface ReadyFix {
@@ -315,7 +304,6 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
         continue;
       }
 
-      // Update cache so the next ticket on this file sees the patched version
       fileCache.set(ticket.file_path, fixedContent);
       readyFixes.push({ ticket, filePath: ticket.file_path });
       console.log(`  Fix ready`);
@@ -329,47 +317,49 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
     return;
   }
 
-  // ── Phase 2: one batch commit, one push ───────────────────────────────────
+  // ── Phase 2: build check — push only if the build passes ─────────────────
 
-  // Final state of each file (cache holds the fully-patched version)
-  const filesToCommit = [...new Set(readyFixes.map((f) => f.filePath))].map((path) => ({
-    path,
-    content: fileCache.get(path)!,
-  }));
+  const buildPassed = await verifyBuildLocally(
+    readyFixes.map((f) => ({ filePath: f.filePath, fixedContent: fileCache.get(f.filePath)! })),
+  );
 
-  const ticketIds = readyFixes.map((f) => f.ticket.id);
-  const commitMessage =
-    `fix(ui): auto-fix ${readyFixes.length} visual issue(s) [tickets ${ticketIds.join(", ")}]\n\n` +
-    readyFixes.map((f) => `- ${f.ticket.component}: ${f.ticket.reasoning}`).join("\n");
-
-  console.log(`\n  Committing ${filesToCommit.length} file(s) in one batch push…`);
-
-  let commitSha: string;
-  try {
-    commitSha = await batchCommit(octokit, targetBranch, filesToCommit, commitMessage);
-    console.log(`  Pushed: ${commitSha.slice(0, 8)} — one commit, one Vercel preview`);
-  } catch (err) {
-    console.error("  Batch commit failed:", err);
+  if (!buildPassed) {
+    console.log("\nFix Agent done. Push aborted — build failed.");
     return;
   }
 
-  // ── Phase 3: resolve tickets ──────────────────────────────────────────────
+  // ── Phase 3: stage N commits, push once ──────────────────────────────────
+
+  console.log(`\n  Pushing ${readyFixes.length} commit(s)…`);
+
+  let commitSha: string;
+  try {
+    commitSha = await commitAllAndPush(
+      octokit,
+      targetBranch,
+      readyFixes.map((f) => ({
+        filePath: f.filePath,
+        fixedContent: fileCache.get(f.filePath)!,
+        ticketId: f.ticket.id,
+        component: f.ticket.component,
+      })),
+    );
+    console.log(`  Pushed tip: ${commitSha.slice(0, 8)}`);
+  } catch (err) {
+    console.error("  Push failed:", err);
+    return;
+  }
+
+  // ── Phase 4: resolve tickets ──────────────────────────────────────────────
 
   for (const { ticket } of readyFixes) {
     await resolveTicket(ticket.id);
   }
 
-  // ── Phase 4: optional CI check ────────────────────────────────────────────
-
-  let ciPassed = true;
-  if (process.env.WAIT_FOR_CI === "true") {
-    ciPassed = await waitForCI(octokit, commitSha);
-  }
-
   // ── Phase 5: open / update PR ─────────────────────────────────────────────
 
   if (mode === "bugfix-branch") {
-    await ensureBugfixPR(octokit, readyFixes.map((f) => f.ticket), ciPassed);
+    await ensureBugfixPR(octokit, readyFixes.map((f) => f.ticket));
   }
 
   console.log(`\nFix Agent done. ${readyFixes.length}/${tickets.length} ticket(s) resolved.`);

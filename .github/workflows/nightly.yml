@@ -55,9 +55,11 @@ jobs:
           REPO_OWNER: ${{ vars.REPO_OWNER }}
           REPO_NAME: ${{ vars.REPO_NAME }}
           REPO_BRANCH: ${{ vars.REPO_BRANCH || 'main' }}
-          # Poll GitHub Checks after the fix commit; PR is opened only when CI passes.
-          # Set to "false" if the target repo has no CI configured.
-          WAIT_FOR_CI: ${{ vars.WAIT_FOR_CI || 'true' }}
+          # Shell command to verify the build before pushing.
+          # The fix agent clones the target repo, applies fixes, runs this command.
+          # Push is aborted if the command exits with a non-zero code.
+          # Remove or leave empty to skip the build check.
+          BUILD_COMMAND: ${{ vars.BUILD_COMMAND }}
 
       - name: Upload screenshots
         if: always()
