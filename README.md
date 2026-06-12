@@ -107,6 +107,15 @@ Go to: **github.com/YOUR-ORG/ui-visual-agent → Settings → Secrets and variab
 
 ### 5. Create the config file for your project
 
+**Option A — let Claude generate it for you (recommended)**
+
+Open [examples/generate-config-prompt.md](examples/generate-config-prompt.md),
+copy the prompt inside, and paste it into Claude **in the context of your target project**.
+Claude will explore the codebase and return a complete `ui-agent.config.ts` with
+real file paths, viewports, and skip rules already filled in.
+
+**Option B — copy the reference example and edit manually**
+
 ```bash
 cp examples/artboxes-config.ts ui-agent.config.ts
 ```
