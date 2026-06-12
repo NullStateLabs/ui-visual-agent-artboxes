@@ -219,6 +219,7 @@ pnpm migrate
 | `REPO_OWNER` | Target repo owner, e.g. `NullStateLabs` |
 | `REPO_NAME` | Target repo name, e.g. `artboxes` |
 | `REPO_BRANCH` | Base branch, default `main` |
+| `WAIT_FOR_CI` | Set `true` to poll GitHub Checks after the fix commit; PR is opened only when CI passes (timeout: 10 min). Default `true` in nightly workflow. |
 | `MOCK_LLM` | Set `true` to skip real API calls during pipeline testing |
 
 ---
@@ -320,7 +321,9 @@ The chaos runner does not require `data-testid` or IDs on clickable elements. Cl
 ## GitHub Actions
 
 ### Nightly (`.github/workflows/nightly.yml`)
-Runs at 03:00 UTC. Scenarios → checklist → tickets → all fixes committed to a single `bugfix` branch → one PR opened (or updated) in the target repo.
+Runs at 03:00 UTC. Scenarios → checklist → tickets → **all fixes batched into one commit** on the `bugfix` branch → CI polled → one PR opened (or updated) once checks pass.
+
+One commit per run = one Vercel preview deployment = at most one notification email.
 
 ### Chaos (`.github/workflows/chaos.yml`)
 Manual trigger (`workflow_dispatch`) by default. The `schedule` block is commented out — **uncomment it only during the pre-launch battle-hardening window**, then re-comment after launch.
