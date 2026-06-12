@@ -107,6 +107,15 @@ Go to: **github.com/YOUR-ORG/ui-visual-agent → Settings → Secrets and variab
 
 ### 5. Create the config file for your project
 
+**Option A — let Claude generate it for you (recommended)**
+
+Open [examples/generate-config-prompt.md](examples/generate-config-prompt.md),
+copy the prompt inside, and paste it into Claude **in the context of your target project**.
+Claude will explore the codebase and return a complete `ui-agent.config.ts` with
+real file paths, viewports, and skip rules already filled in.
+
+**Option B — copy the reference example and edit manually**
+
 ```bash
 cp examples/artboxes-config.ts ui-agent.config.ts
 ```
@@ -240,17 +249,20 @@ const config: AgentConfig = {
     {
       label: "home — mobile",
       url: "/",
+      filePath: "app/page.tsx",          // source file the fix agent will edit
       viewport: { width: 375, height: 812 },
     },
     {
       label: "home — desktop",
       url: "/",
+      filePath: "app/page.tsx",
       viewport: { width: 1280, height: 800 },
       severityThreshold: "medium",
     },
     {
       label: "connect wallet modal",
       url: "/",
+      filePath: "components/modals/ConnectWalletModal.tsx",
       viewport: { width: 375, height: 812 },
       steps: [
         { action: "click", selector: "button:has-text('Connect')" },
@@ -260,6 +272,7 @@ const config: AgentConfig = {
     {
       label: "404 page",
       url: "/this-page-does-not-exist",
+      filePath: "app/not-found.tsx",
       viewport: { width: 375, height: 812 },
     },
   ],
@@ -283,6 +296,7 @@ export default config;
 |---|---|---|
 | `label` | `string` | Name shown in test output and bug tickets |
 | `url` | `string` | Path relative to `BASE_URL` |
+| `filePath` | `string` | Source file path in the target repo (e.g. `app/upcoming/page.tsx`). Required for auto-fix — the fix agent edits this file. If omitted, tickets are logged but cannot be auto-fixed. |
 | `viewport` | `{ width, height }` | Defaults to `375×812` (mobile) |
 | `steps` | `StepAction[]` | Interactions before the screenshot (click, fill, hover, wait, scroll, press) |
 | `skipIssueIds` | `number[]` | Checklist issue IDs to ignore for this scenario |
