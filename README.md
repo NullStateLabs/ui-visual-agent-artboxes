@@ -240,17 +240,20 @@ const config: AgentConfig = {
     {
       label: "home — mobile",
       url: "/",
+      filePath: "app/page.tsx",          // source file the fix agent will edit
       viewport: { width: 375, height: 812 },
     },
     {
       label: "home — desktop",
       url: "/",
+      filePath: "app/page.tsx",
       viewport: { width: 1280, height: 800 },
       severityThreshold: "medium",
     },
     {
       label: "connect wallet modal",
       url: "/",
+      filePath: "components/modals/ConnectWalletModal.tsx",
       viewport: { width: 375, height: 812 },
       steps: [
         { action: "click", selector: "button:has-text('Connect')" },
@@ -260,6 +263,7 @@ const config: AgentConfig = {
     {
       label: "404 page",
       url: "/this-page-does-not-exist",
+      filePath: "app/not-found.tsx",
       viewport: { width: 375, height: 812 },
     },
   ],
@@ -283,6 +287,7 @@ export default config;
 |---|---|---|
 | `label` | `string` | Name shown in test output and bug tickets |
 | `url` | `string` | Path relative to `BASE_URL` |
+| `filePath` | `string` | Source file path in the target repo (e.g. `app/upcoming/page.tsx`). Required for auto-fix — the fix agent edits this file. If omitted, tickets are logged but cannot be auto-fixed. |
 | `viewport` | `{ width, height }` | Defaults to `375×812` (mobile) |
 | `steps` | `StepAction[]` | Interactions before the screenshot (click, fill, hover, wait, scroll, press) |
 | `skipIssueIds` | `number[]` | Checklist issue IDs to ignore for this scenario |

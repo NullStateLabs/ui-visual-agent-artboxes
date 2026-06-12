@@ -207,6 +207,14 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
   for (const ticket of tickets) {
     console.log(`\nProcessing ticket #${ticket.id}: ${ticket.component}`);
 
+    if (!ticket.file_path || !ticket.file_path.includes(".")) {
+      console.warn(
+        `  Skipping: file_path "${ticket.file_path || "(empty)"}" is not a source file path.\n` +
+        `  Set filePath in your scenario config, e.g. filePath: "app/upcoming/page.tsx"`
+      );
+      continue;
+    }
+
     try {
       // Always read from the target branch so sequential commits chain correctly
       const { content: fileContent, sha } = await getFileContent(
