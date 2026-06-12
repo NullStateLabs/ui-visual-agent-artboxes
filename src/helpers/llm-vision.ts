@@ -162,6 +162,67 @@ export async function generateCodeFix(opts: {
   return response.content[0].type === "text" ? response.content[0].text : opts.fileContent;
 }
 
+/**
+ * Given a build error and the files that were just changed, ask Claude
+ * what additional edits are needed to make the build pass.
+ * Returns a map of { filePath → fixedContent } for each file that needs changing.
+ */
+export async function generateBuildFix(opts: {
+  buildError: string;
+  changedFiles: Array<{ path: string; content: string }>;
+}): Promise<Array<{ path: string; content: string }>> {
+  if (MOCK_LLM) {
+    console.log("[mock-llm] Skipping build fix generation");
+    return [];
+  }
+
+  const filesSection = opts.changedFiles
+    .map((f) => `### ${f.path}\n\`\`\`tsx\n${f.content}\n\`\`\``)
+    .join("\n\n");
+
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: [
+              "A build command failed after applying automated UI fixes. Your task is to fix the build error.",
+              "",
+              "Build error output:",
+              "```",
+              opts.buildError.slice(0, 6000), // cap to avoid token overflow
+              "```",
+              "",
+              "Files that were just changed (the UI fixes that caused or revealed the error):",
+              "",
+              filesSection,
+              "",
+              "Return ONLY a JSON array of files that need to be changed to fix the build.",
+              "Each item: { \"path\": \"<relative file path>\", \"content\": \"<full corrected file content>\" }",
+              "Return [] if no changes are needed (e.g. the error is a transient install issue).",
+              "No explanation, no markdown fences — raw JSON only.",
+            ].join("\n"),
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+
+  try {
+    return JSON.parse(cleaned) as Array<{ path: string; content: string }>;
+  } catch {
+    console.error("generateBuildFix: non-JSON response:", raw);
+    return [];
+  }
+}
+
 export interface ExploreAction {
   /** Visible text of the element to interact with — used with getByText() */
   text: string;

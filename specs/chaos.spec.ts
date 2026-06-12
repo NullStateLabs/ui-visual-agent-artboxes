@@ -14,7 +14,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { insertBugTicket, closePool } from "../src/helpers/db-ticket.js";
+import { upsertBugTicket, closePool } from "../src/helpers/db-ticket.js";
 import { runFixAgent } from "../src/agent/fix-agent.js";
 import { runChaosSession } from "../src/runner/chaos-runner.js";
 import { discoverRoutes } from "../src/helpers/sitemap.js";
@@ -31,17 +31,16 @@ try {
   config = { scenarios: [] };
 }
 
-// Resolve routes: config → sitemap → ["/"]
 const routes: string[] =
   config.routes && config.routes.length > 0
     ? config.routes
     : await discoverRoutes(BASE_URL);
 
-let ticketsCreated = 0;
+let newTickets = 0;
 
 test.afterAll(async () => {
-  if (ticketsCreated > 0 && process.env.AUTO_FIX === "true") {
-    console.log(`\nAuto-fix: processing ${ticketsCreated} ticket(s) — committing directly to main…`);
+  if (newTickets > 0 && process.env.AUTO_FIX === "true") {
+    console.log(`\nAuto-fix: ${newTickets} new ticket(s) — committing directly to main…`);
     await runFixAgent({ mode: "direct" });
   }
   await closePool();
@@ -53,17 +52,24 @@ for (const route of routes) {
 
     for (const stepResult of session.steps) {
       for (const finding of stepResult.findings) {
-        const ticketId = await insertBugTicket({
+        const { id: ticketId, isNew } = await upsertBugTicket({
           component: `chaos:${stepResult.route}`,
           file_path: stepResult.route,
           assertion: finding.description,
           reasoning: finding.reasoning,
           screenshot_path: stepResult.screenshotPath,
         });
-        ticketsCreated++;
-        console.error(
-          `  [${finding.severity.toUpperCase()}] step ${stepResult.step} — ticket #${ticketId}: ${finding.reasoning}`
-        );
+
+        if (isNew) {
+          newTickets++;
+          console.error(
+            `  [${finding.severity.toUpperCase()}] step ${stepResult.step} — new ticket #${ticketId}: ${finding.reasoning}`
+          );
+        } else {
+          console.warn(
+            `  [${finding.severity.toUpperCase()}] step ${stepResult.step} — existing ticket #${ticketId}: ${finding.reasoning}`
+          );
+        }
       }
     }
 
