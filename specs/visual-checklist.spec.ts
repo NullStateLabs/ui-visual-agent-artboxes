@@ -4,8 +4,9 @@
  * Create a ui-agent.config.ts in the repo root that exports an AgentConfig,
  * then run: pnpm test
  *
- * Set AUTO_FIX=true to automatically open GitHub PRs for any failing tickets
- * immediately after the test suite finishes (requires UI_FIX_GITHUB_TOKEN).
+ * Set AUTO_FIX=true to automatically open GitHub PRs after all tests finish.
+ * The fix agent runs in globalTeardown (playwright.config.ts) — once per run,
+ * not once per worker — so there are no parallel fix-agent races.
  *
  * See examples/artboxes-config.ts for a reference config.
  */
@@ -13,7 +14,6 @@
 import { test, expect } from "@playwright/test";
 import { upsertBugTicket, closePool } from "../src/helpers/db-ticket.js";
 import { runScenario } from "../src/runner/scenario-runner.js";
-import { runFixAgent } from "../src/agent/fix-agent.js";
 import type { AgentConfig } from "../src/runner/types.js";
 
 let config: AgentConfig;
@@ -28,15 +28,7 @@ try {
   config = { scenarios: [] };
 }
 
-// Count only genuinely NEW tickets — duplicates of already-open issues don't
-// re-trigger the fix agent (they just refresh the screenshot in the DB).
-let newTickets = 0;
-
 test.afterAll(async () => {
-  if (newTickets > 0 && process.env.AUTO_FIX === "true") {
-    console.log(`\nAuto-fix: ${newTickets} new ticket(s) found — running fix agent…`);
-    await runFixAgent({ mode: "bugfix-branch" });
-  }
   await closePool();
 });
 
@@ -55,7 +47,6 @@ for (const scenario of config.scenarios) {
         });
 
         if (isNew) {
-          newTickets++;
           console.error(
             `  [${finding.severity.toUpperCase()}] New ticket #${ticketId}: ${finding.reasoning}`
           );
