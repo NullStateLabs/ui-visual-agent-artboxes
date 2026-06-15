@@ -46,9 +46,8 @@ const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
 const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 
 const config: AgentConfig = {
-  // ── Global false positives ───────────────────────────────────────────────
-  // See registry above for explanations.
-  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 34, 36, 39, 43],
+  // Unconditional design choices — see registry above for explanations.
+  globalSkipIssueIds: [3, 7, 11, 12, 15, 27, 32, 34, 36, 39, 43],
 
   scenarios: [
     // ── WEB APP ──────────────────────────────────────────────────────────────
@@ -70,6 +69,8 @@ const config: AgentConfig = {
       url: `${WEB_URL}/`,
       filePath: "apps/web/app/page.tsx",
       viewport: { width: 768, height: 1024 },
+      // #22: hero image intentionally bleeds to viewport edge at tablet width
+      skipIssueIds: [22],
     },
 
     {
@@ -100,7 +101,8 @@ const config: AgentConfig = {
       filePath: "apps/web/app/upcoming/page.tsx",
       viewport: { width: 1280, height: 800 },
       // gradient/blank placeholder cards while CDN images load
-      skipIssueIds: [8, 20, 23, 38],
+      // #22: last row of cards partially visible at scroll fold
+      skipIssueIds: [8, 20, 22, 23, 38],
     },
 
     // Marketplace — unauthenticated shows a sign-in wall
@@ -117,15 +119,17 @@ const config: AgentConfig = {
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1280, height: 800 },
+      // #22: bottom row of artwork images partially visible at viewport edge
       // #23: CDN images still loading in marketplace grid at screenshot time
-      skipIssueIds: [8, 23, 49],
+      skipIssueIds: [8, 22, 23, 49],
     },
     {
       label: "Web / Marketplace — wide desktop",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1440, height: 900 },
-      skipIssueIds: [8, 23, 49],
+      // #22: bottom row partially visible at viewport scroll edge
+      skipIssueIds: [8, 22, 23, 49],
     },
 
     // Auth-required pages — render a Privy sign-in wall when unauthenticated
@@ -275,7 +279,7 @@ const config: AgentConfig = {
 
     // ── WEB APP — MODALS ─────────────────────────────────────────────────────
 
-    // Sign-in modal (Privy) — overlay and background artefacts covered globally
+    // Sign-in modal (Privy) — background hero artefacts are not layout bugs
     {
       label: "Web / Sign in modal — mobile",
       url: `${WEB_URL}/`,
@@ -297,9 +301,11 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
+      // #9: background hero text clipped by modal — expected when modal is open
+      skipIssueIds: [9],
     },
 
-    // Global search — seed/test handles are intentionally long; dropdown truncation is expected
+    // Global search — seed/test handles are intentionally long
     {
       label: "Web / Global search with query — desktop",
       url: `${WEB_URL}/`,
@@ -321,7 +327,7 @@ const config: AgentConfig = {
       ],
     },
 
-    // Collections filter — cards at viewport bottom are partially in-view due to scroll; not overflow
+    // Collections filter — cards at viewport bottom are partially in-view
     {
       label: "Web / Collections search filter — mobile",
       url: `${WEB_URL}/collections`,
@@ -335,6 +341,8 @@ const config: AgentConfig = {
         },
         { action: "wait", ms: 500 },
       ],
+      // #9: cards at viewport bottom partially visible — scroll fold, not clipping
+      skipIssueIds: [9],
     },
 
     {
@@ -347,7 +355,8 @@ const config: AgentConfig = {
         { action: "wait", ms: 600 },
       ],
       // #16: marketplace description text uses intentionally muted brand color
-      skipIssueIds: [8, 16, 49],
+      // #22: portrait image at scroll fold behind modal is not overflow
+      skipIssueIds: [8, 16, 22, 49],
     },
     {
       label: "Web / PlaceOfferModal — desktop",
@@ -358,8 +367,9 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
+      // #22: portrait image clipping visible in marketplace grid BEHIND the modal
       // #23: CDN images loading in background marketplace grid
-      skipIssueIds: [8, 16, 23, 49],
+      skipIssueIds: [8, 16, 22, 23, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
@@ -385,7 +395,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 46, 49],
+      // #9/#33: TOTAL EARNINGS value at bottom of scroll fold, not a real clip
+      skipIssueIds: [8, 9, 33, 46, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
@@ -452,7 +463,9 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 46, 49],
+      // #9/#10: dashboard earnings value visible in background behind the modal,
+      // clipped at viewport bottom — background element, not the modal itself
+      skipIssueIds: [8, 9, 10, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -474,12 +487,12 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
+      // #16: background page content appears low-contrast because the modal scrim dims it
       skipIssueIds: [8, 16, 49],
     },
   ],
 
   // ── CHAOS ROUTES ─────────────────────────────────────────────────────────
-  // Most interactive pages across all three apps.
   routes: [
     `${WEB_URL}/`,
     `${WEB_URL}/collections`,
@@ -492,3 +505,4 @@ const config: AgentConfig = {
 };
 
 export default config;
+
