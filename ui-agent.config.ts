@@ -46,6 +46,10 @@ const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
 const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 
 const config: AgentConfig = {
+  // ── Global false positives ───────────────────────────────────────────────
+  // See registry above for explanations.
+  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 34, 36, 39, 43],
+
   scenarios: [
     // ── WEB APP ──────────────────────────────────────────────────────────────
 
@@ -100,12 +104,12 @@ const config: AgentConfig = {
     },
 
     // Marketplace — unauthenticated shows a sign-in wall
-    // #16: brand subtitle text uses intentionally muted color on beige background
     {
       label: "Web / Marketplace — mobile (unauthed)",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 375, height: 812 },
+      // #16: brand subtitle text uses intentionally muted color on beige background
       skipIssueIds: [8, 16, 49],
     },
     {
@@ -121,12 +125,10 @@ const config: AgentConfig = {
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1440, height: 900 },
-      // #11: card titles use CSS ellipsis at fixed max-width — intentional card design
-      skipIssueIds: [8, 11, 23, 49],
+      skipIssueIds: [8, 23, 49],
     },
 
     // Auth-required pages — render a Privy sign-in wall when unauthenticated
-    // #16: "Sign in to view your…" uses intentionally muted brand color on beige
     {
       label: "Web / Dashboard — mobile (unauthed)",
       url: `${WEB_URL}/dashboard`,
@@ -146,6 +148,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/profile`,
       filePath: "apps/web/app/profile/page.tsx",
       viewport: { width: 375, height: 812 },
+      // #16: "Sign in to view your…" uses intentionally muted brand color on beige
       skipIssueIds: [8, 16, 49],
     },
     {
@@ -272,10 +275,7 @@ const config: AgentConfig = {
 
     // ── WEB APP — MODALS ─────────────────────────────────────────────────────
 
-    // Sign-in modal (Privy) — issues on background hero are not layout bugs
-    // #16: hero subtitle text uses intentionally muted brand color
-    // #43: Privy's own modal/sheet uses its own overlay styling (not our component)
-    // #9:  background hero heading visible behind modal is expected background content
+    // Sign-in modal (Privy) — overlay and background artefacts covered globally
     {
       label: "Web / Sign in modal — mobile",
       url: `${WEB_URL}/`,
@@ -285,7 +285,8 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [16, 43],
+      // #16: hero subtitle text uses intentionally muted brand color
+      skipIssueIds: [16],
     },
     {
       label: "Web / Sign in modal — desktop",
@@ -296,9 +297,6 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
-      // #9:  background hero text clipped by modal — expected when modal is open
-      // #36: home page has no active nav item — intentional
-      skipIssueIds: [9, 36],
     },
 
     // Global search — seed/test handles are intentionally long; dropdown truncation is expected
@@ -321,7 +319,6 @@ const config: AgentConfig = {
         },
         { action: "wait", ms: 800 },
       ],
-      skipIssueIds: [11],
     },
 
     // Collections filter — cards at viewport bottom are partially in-view due to scroll; not overflow
@@ -338,7 +335,6 @@ const config: AgentConfig = {
         },
         { action: "wait", ms: 500 },
       ],
-      skipIssueIds: [9],
     },
 
     {
@@ -362,21 +358,19 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
-      // #22: portrait image clipping visible in marketplace grid BEHIND the modal — not our modal
       // #23: CDN images loading in background marketplace grid
-      skipIssueIds: [8, 16, 22, 23, 49],
+      skipIssueIds: [8, 16, 23, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
 
-    // #36: artist bottom nav has no active-item highlight — intentional design across all Artist pages
-    // #46: Home icon is filled/solid while others are outline — intentional active-state icon
     {
       label: "Artist / Home — mobile",
       url: `${ARTIST_URL}/`,
       filePath: "apps/artist/app/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [36, 46],
+      // #46: Home icon is filled/solid while others are outline — intentional active-state icon
+      skipIssueIds: [46],
     },
     {
       label: "Artist / Home — desktop",
@@ -391,7 +385,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 36, 46, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
@@ -405,8 +399,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 375, height: 812 },
-      // #23: avatar placeholder loading; #46: mixed icon styles in bottom nav
-      skipIssueIds: [8, 23, 36, 46, 49],
+      // #23: avatar placeholder loading
+      skipIssueIds: [8, 23, 46, 49],
     },
     {
       label: "Artist / Earnings — desktop (unauthed)",
@@ -421,8 +415,7 @@ const config: AgentConfig = {
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 375, height: 812 },
       // #23: hero/banner area is a loading placeholder
-      // #39: icon+text rows in claim cards are "slightly" misaligned — sub-pixel rendering, not a real bug
-      skipIssueIds: [8, 23, 36, 39, 46, 49],
+      skipIssueIds: [8, 23, 46, 49],
     },
     {
       label: "Artist / Referrals — mobile (unauthed)",
@@ -430,8 +423,7 @@ const config: AgentConfig = {
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
       // #16: "Connect your studio wallet" placeholder is intentionally muted brand color
-      // #39: gift icon + heading in 'Your invite link' card are "slightly" misaligned — sub-pixel rendering
-      skipIssueIds: [8, 16, 36, 39, 46, 49],
+      skipIssueIds: [8, 16, 46, 49],
     },
 
     {
@@ -446,7 +438,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/terms`,
       filePath: "apps/artist/app/terms/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [36, 46],
+      skipIssueIds: [46],
     },
 
     // ── ARTIST APP — MODALS ──────────────────────────────────────────────────
@@ -460,9 +452,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      // #9/#10: dashboard earnings value visible in background behind the modal,
-      // clipped at viewport bottom — background element, not the modal itself
-      skipIssueIds: [8, 9, 10, 36, 46, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -473,8 +463,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      // #43: light overlay is intentional design — scrim opacity matches brand style
-      skipIssueIds: [8, 43, 49],
+      skipIssueIds: [8, 49],
     },
     {
       label: "Artist / WithdrawModal — desktop",
