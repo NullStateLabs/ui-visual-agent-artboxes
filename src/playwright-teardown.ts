@@ -11,6 +11,19 @@ import { closePool } from "./helpers/db-ticket.js";
 export default async function teardown() {
   if (process.env.AUTO_FIX !== "true") return;
 
+  // If the target app was unreachable, every test failed with ERR_CONNECTION_REFUSED —
+  // not real UI bugs. Skip the fix agent to avoid generating fixes from stale tickets.
+  const baseUrl = process.env.BASE_URL ?? process.env.WEB_URL ?? "http://localhost:3000";
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 5000);
+    await fetch(baseUrl, { method: "HEAD", signal: controller.signal });
+  } catch {
+    console.log(`\n[teardown] ${baseUrl} is not reachable — skipping fix agent (test run was invalid)`);
+    await closePool();
+    return;
+  }
+
   const mode = process.env.DIRECT_TO_MAIN === "true" ? "direct" : "bugfix-branch";
   console.log(`\n[teardown] Running fix agent (mode: ${mode})…`);
 
