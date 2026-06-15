@@ -60,6 +60,11 @@ jobs:
           # Push is aborted if the command exits with a non-zero code.
           # Remove or leave empty to skip the build check.
           BUILD_COMMAND: ${{ vars.BUILD_COMMAND }}
+          # Multi-app URLs — set as repository Variables in GitHub Actions settings.
+          # Used by ui-agent.config.ts to point each scenario at the right deployed app.
+          WEB_URL: ${{ vars.WEB_URL }}
+          ARTIST_URL: ${{ vars.ARTIST_URL }}
+          PRELAUNCH_URL: ${{ vars.PRELAUNCH_URL }}
 
       - name: Upload screenshots
         if: always()
