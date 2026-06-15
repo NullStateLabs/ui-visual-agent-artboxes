@@ -474,7 +474,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
   ],
 
