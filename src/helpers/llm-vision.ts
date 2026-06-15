@@ -161,8 +161,16 @@ export async function generateCodeFix(opts: {
 
   const fixed = response.content[0].type === "text" ? response.content[0].text : opts.fileContent;
 
-  // Detect truncated response: if the response ends abruptly (no closing brace/tag on last line)
-  // return the original to avoid committing broken code.
+  // Reject prose: if the first non-empty line doesn't look like source code,
+  // Claude returned an explanation instead of the file — keep the original.
+  const firstLine = fixed.trimStart().split("\n")[0].trimStart();
+  const startsLikeCode = /^("|'|`|import |export |const |let |var |function |class |type |interface |\/\/|\/\*|{|<|\[|@)/.test(firstLine);
+  if (!startsLikeCode) {
+    console.warn(`  generateCodeFix: response looks like prose, not code — keeping original (${opts.filePath ?? opts.component})`);
+    return opts.fileContent;
+  }
+
+  // Reject truncated response: if the last line has no closing delimiter the file was cut off.
   const lastLine = fixed.trimEnd().split("\n").at(-1) ?? "";
   const looksComplete = /^[}\]>;]/.test(lastLine.trimStart()) || lastLine.trimStart().startsWith("//");
   if (!looksComplete) {
@@ -199,7 +207,7 @@ export async function generateBuildFix(opts: {
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
