@@ -35,6 +35,8 @@
  *      Discord, GitHub) are universally recognisable, no label needed
  * #32  inconsistent form field widths — filter dropdowns narrower than the
  *      search bar above them is intentional filter-bar layout
+ * #33  navigation links cut off — also fires for non-nav content near the
+ *      viewport scroll edge (e.g. earnings values at the bottom of screen)
  * #34  nav bar overlaps main content — fixed bottom nav on mobile is the
  *      intentional navigation pattern; pages scroll beneath it
  * #36  active nav item identical to inactive — intentional design on both
@@ -63,7 +65,7 @@ const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 const config: AgentConfig = {
   // ── Global false positives ───────────────────────────────────────────────
   // See registry above for explanations.
-  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 34, 36, 39, 43],
+  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 33, 34, 36, 39, 43],
 
   scenarios: [
     // ── WEB APP ──────────────────────────────────────────────────────────────
@@ -489,7 +491,8 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 49],
+      // #16: background page content appears low-contrast because the modal scrim dims it — intentional
+      skipIssueIds: [8, 16, 49],
     },
   ],
 
