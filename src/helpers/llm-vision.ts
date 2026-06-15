@@ -117,7 +117,7 @@ export async function analyzeScreenshotWithChecklist(opts: {
 }
 
 export async function generateCodeFix(opts: {
-  filePath: string;
+  filePath?: string;
   fileContent: string;
   component: string;
   assertion: string;
@@ -133,7 +133,7 @@ export async function generateCodeFix(opts: {
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 2048,
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
@@ -159,7 +159,18 @@ export async function generateCodeFix(opts: {
     ],
   });
 
-  return response.content[0].type === "text" ? response.content[0].text : opts.fileContent;
+  const fixed = response.content[0].type === "text" ? response.content[0].text : opts.fileContent;
+
+  // Detect truncated response: if the response ends abruptly (no closing brace/tag on last line)
+  // return the original to avoid committing broken code.
+  const lastLine = fixed.trimEnd().split("\n").at(-1) ?? "";
+  const looksComplete = /^[}\]>;]/.test(lastLine.trimStart()) || lastLine.trimStart().startsWith("//");
+  if (!looksComplete) {
+    console.warn(`  generateCodeFix: response appears truncated for ${opts.filePath ?? opts.component} — keeping original`);
+    return opts.fileContent;
+  }
+
+  return fixed;
 }
 
 /**
