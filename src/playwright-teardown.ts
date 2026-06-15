@@ -30,6 +30,10 @@ export default async function teardown() {
   try {
     await runFixAgent({ mode });
   } finally {
-    await closePool();
+    try {
+      await closePool();
+    } catch (err) {
+      console.warn("[teardown] pool.end() failed:", err);
+    }
   }
 }
