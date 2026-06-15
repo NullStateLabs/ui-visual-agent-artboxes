@@ -60,6 +60,10 @@ jobs:
           # Push is aborted if the command exits with a non-zero code.
           # Remove or leave empty to skip the build check.
           BUILD_COMMAND: ${{ vars.BUILD_COMMAND }}
+          # Optional: shell command to run before BUILD_COMMAND in the fix-agent's clone.
+          # Use this to compile workspace packages whose dist/ isn't committed to git.
+          # Example: pnpm --filter @artboxes/contracts build
+          PREBUILD_COMMAND: ${{ vars.PREBUILD_COMMAND }}
           # Multi-app URLs — set as repository Variables in GitHub Actions settings.
           # Used by ui-agent.config.ts to point each scenario at the right deployed app.
           WEB_URL: ${{ vars.WEB_URL }}

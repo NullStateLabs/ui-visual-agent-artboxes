@@ -91,6 +91,22 @@ async function verifyBuildWithAutoFix(
     console.log(`  Installing dependencies: ${installCmd}`);
     execSync(installCmd, { cwd: tmpDir, stdio: "inherit" });
 
+    // PREBUILD_COMMAND: build workspace dependencies (e.g. contracts) before the main app.
+    // Required when the app imports from packages that aren't committed in dist/ form.
+    // Example: PREBUILD_COMMAND="pnpm --filter @artboxes/contracts build"
+    const preBuildCommand = process.env.PREBUILD_COMMAND;
+    if (preBuildCommand) {
+      console.log(`  Pre-build: ${preBuildCommand}`);
+      execSync(preBuildCommand, {
+        cwd: tmpDir,
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          PATH: `${join(tmpDir, "node_modules", ".bin")}:${process.env.PATH ?? ""}`,
+        },
+      });
+    }
+
     // Apply original UI fixes
     for (const { filePath, fixedContent } of fixes) {
       const dest = join(tmpDir, filePath);
@@ -125,16 +141,13 @@ async function verifyBuildWithAutoFix(
 
         console.error(`  Build failed (attempt ${attempt}):\n${errorOutput.slice(0, 500)}`);
 
-        // Missing pre-built artifacts (e.g. packages/contracts/dist/) can't be fixed
-        // by editing source files — the user's BUILD_COMMAND must build packages first.
+        // Missing pre-built artifacts (e.g. packages/contracts/dist/) cannot be
+        // fixed by editing source files. Set PREBUILD_COMMAND to build them first.
         if (/Module not found.*dist\//i.test(errorOutput) || /Can't resolve.*\/dist\//i.test(errorOutput)) {
           console.error(
-            "  ⚠ Build error: pre-built package artifacts are missing.\n" +
-            "  The BUILD_COMMAND must compile dependency packages before the app.\n" +
-            "  Suggested fix: use turbo with the dependency suffix, e.g.\n" +
-            `    turbo run build --filter=${REPO_NAME}...\n` +
-            "  or prefix with the package build:\n" +
-            "    pnpm --filter <packages/your-pkg> build && " + buildCommand
+            "  ⚠ Build needs pre-compiled package artifacts (e.g. packages/*/dist/).\n" +
+            "  Set PREBUILD_COMMAND in GitHub Variables to build them before the app.\n" +
+            "  Example: PREBUILD_COMMAND=pnpm --filter @artboxes/contracts build"
           );
           break;
         }
