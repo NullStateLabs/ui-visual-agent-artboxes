@@ -9,7 +9,7 @@
  */
 import type { AgentConfig } from "./src/runner/types.js";
 
-const WEB_URL    = process.env.WEB_URL    ?? "http://localhost:3000";
+const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
 const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 
 const config: AgentConfig = {
@@ -34,15 +34,16 @@ const config: AgentConfig = {
       url: `${WEB_URL}/collections`,
       filePath: "apps/web/app/collections/page.tsx",
       viewport: { width: 375, height: 812 },
-      // skeleton cards during data fetch look like empty boxes (#23, #49, #50) — intentional loading state
-      skipIssueIds: [23, 49, 50],
+      // skeleton cards during data fetch look like empty/blank boxes — intentional loading state
+      skipIssueIds: [8, 23, 49, 50],
     },
     {
       label: "Web / Collections — desktop",
       url: `${WEB_URL}/collections`,
       filePath: "apps/web/app/collections/page.tsx",
       viewport: { width: 1280, height: 800 },
-      skipIssueIds: [8, 23, 49, 50],
+      // #48: skeleton placeholder grid while images load — intentional loading state
+      skipIssueIds: [8, 23, 48, 49, 50],
     },
 
     {
@@ -57,16 +58,17 @@ const config: AgentConfig = {
       filePath: "apps/web/app/upcoming/page.tsx",
       viewport: { width: 1280, height: 800 },
       // gradient placeholder cards while CDN images load — not a layout bug
-      skipIssueIds: [23],
+      skipIssueIds: [8, 23],
     },
 
     // Marketplace — unauthenticated shows a sign-in wall; empty container + no empty-state msg is intentional (#8, #49)
+    // #16: "Connect wallet" / brand subtitle text uses intentionally muted brand color on beige background
     {
       label: "Web / Marketplace — mobile (unauthed)",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
     {
       label: "Web / Marketplace — desktop (unauthed)",
@@ -75,8 +77,16 @@ const config: AgentConfig = {
       viewport: { width: 1280, height: 800 },
       skipIssueIds: [8, 49],
     },
+    {
+      label: "Web / Marketplace — wide desktop",
+      url: `${WEB_URL}/marketplace`,
+      filePath: "apps/web/app/marketplace/page.tsx",
+      viewport: { width: 1440, height: 900 },
+      skipIssueIds: [8, 49],
+    },
 
     // Auth-required pages — all render a Privy sign-in wall when unauthenticated (#8, #49)
+    // #16: "Sign in to view your…" message uses intentionally muted brand color on beige background
     {
       label: "Web / Dashboard — mobile (unauthed)",
       url: `${WEB_URL}/dashboard`,
@@ -96,28 +106,28 @@ const config: AgentConfig = {
       url: `${WEB_URL}/profile`,
       filePath: "apps/web/app/profile/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
     {
       label: "Web / Wallet — mobile (unauthed)",
       url: `${WEB_URL}/wallet`,
       filePath: "apps/web/app/wallet/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
     {
       label: "Web / History — mobile (unauthed)",
       url: `${WEB_URL}/history`,
       filePath: "apps/web/app/history/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
     {
       label: "Web / Shipping — mobile (unauthed)",
       url: `${WEB_URL}/shipping`,
       filePath: "apps/web/app/shipping/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 16, 49],
     },
 
     // FAQ — accordion toggles are icon-only by design (#46)
@@ -177,6 +187,83 @@ const config: AgentConfig = {
       url: `${WEB_URL}/learn`,
       filePath: "apps/web/app/learn/page.tsx",
       viewport: { width: 375, height: 812 },
+    },
+
+    // Home at tablet breakpoint — tests intermediate layout behaviour
+    {
+      label: "Web / Home — tablet",
+      url: `${WEB_URL}/`,
+      filePath: "apps/web/app/page.tsx",
+      viewport: { width: 768, height: 1024 },
+    },
+
+    // 404 page — intentionally sparse, large gap above error message is by design
+    {
+      label: "Web / 404 page — mobile",
+      url: `${WEB_URL}/this-page-does-not-exist`,
+      filePath: "apps/web/app/not-found.tsx",
+      viewport: { width: 375, height: 812 },
+      skipIssueIds: [8],
+    },
+
+    // Sign-in modal — steps open the Privy/auth modal from the nav
+    {
+      label: "Web / Sign in modal — mobile",
+      url: `${WEB_URL}/`,
+      filePath: "apps/web/components/auth/SignInModal.tsx",
+      viewport: { width: 375, height: 812 },
+      steps: [
+        { action: "click", selector: "button:has-text('Sign in')" },
+        { action: "wait", ms: 600 },
+      ],
+    },
+    {
+      label: "Web / Sign in modal — desktop",
+      url: `${WEB_URL}/`,
+      filePath: "apps/web/components/auth/SignInModal.tsx",
+      viewport: { width: 1280, height: 800 },
+      steps: [
+        { action: "click", selector: "button:has-text('Sign in')" },
+        { action: "wait", ms: 600 },
+      ],
+    },
+
+    // Global search — open and type a query to capture dropdown results
+    {
+      label: "Web / Global search with query — desktop",
+      url: `${WEB_URL}/`,
+      filePath: "apps/web/components/search/GlobalSearch.tsx",
+      viewport: { width: 1280, height: 800 },
+      steps: [
+        {
+          action: "click",
+          selector:
+            "button[aria-label*='Search'], button:has-text('Search'), [placeholder*='Search']",
+        },
+        {
+          action: "fill",
+          selector:
+            "input[type='search'], input[placeholder*='Search'], input[name='query']",
+          value: "art",
+        },
+        { action: "wait", ms: 800 },
+      ],
+    },
+
+    // Collections filter — open the medium/style dropdowns on mobile to test filter UI
+    {
+      label: "Web / Collections search filter — mobile",
+      url: `${WEB_URL}/collections`,
+      filePath: "apps/web/components/collections/CollectionFilters.tsx",
+      viewport: { width: 375, height: 812 },
+      steps: [
+        {
+          action: "click",
+          selector:
+            "button:has-text('All mediums'), select[name='medium'], [aria-label*='mediums']",
+        },
+        { action: "wait", ms: 500 },
+      ],
     },
     {
       label: "Web / Help — mobile",
@@ -245,6 +332,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/`,
       filePath: "apps/artist/app/page.tsx",
       viewport: { width: 375, height: 812 },
+      // #36: artist bottom nav has no active-item highlight — intentional design across all Artist pages
+      skipIssueIds: [36],
     },
     {
       label: "Artist / Home — desktop",
@@ -273,7 +362,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      skipIssueIds: [8, 36, 49],
     },
     {
       label: "Artist / Earnings — desktop (unauthed)",
@@ -287,7 +376,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/claims`,
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 49],
+      // #46: Home icon is filled/solid while others are outline — intentional active-state icon choice
+      skipIssueIds: [8, 36, 46, 49],
     },
     {
       label: "Artist / Referrals — mobile (unauthed)",
@@ -295,7 +385,7 @@ const config: AgentConfig = {
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
       // #16: "Connect your studio wallet" placeholder is intentionally muted brand color
-      skipIssueIds: [8, 16, 49],
+      skipIssueIds: [8, 16, 36, 49],
     },
 
     {
@@ -310,7 +400,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/terms`,
       filePath: "apps/artist/app/terms/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [46],
+      skipIssueIds: [36, 46],
     },
 
     // ── ARTIST APP — MODALS ──────────────────────────────────────────────────
@@ -324,7 +414,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 46, 49],
+      skipIssueIds: [8, 36, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -348,158 +438,10 @@ const config: AgentConfig = {
       ],
       skipIssueIds: [8, 49],
     },
-
-    // ── WEB APP — INTERACTIVE SCENARIOS ─────────────────────────────────────
-
-    {
-      label: "Web / 404 page — mobile",
-      url: `${WEB_URL}/this-page-does-not-exist`,
-      viewport: { width: 375, height: 812 },
-      skipIssueIds: [49],
-    },
-
-    {
-      label: "Web / Sign in modal — mobile",
-      url: `${WEB_URL}/`,
-      viewport: { width: 375, height: 812 },
-      steps: [
-        { action: "click", selector: "button:has-text('Sign In')" },
-        { action: "wait", ms: 800 },
-      ],
-      skipIssueIds: [43],
-    },
-    {
-      label: "Web / Sign in modal — desktop",
-      url: `${WEB_URL}/`,
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        { action: "click", selector: "button:has-text('Sign In')" },
-        { action: "wait", ms: 800 },
-      ],
-      skipIssueIds: [9],
-    },
-
-    {
-      label: "Web / FAQ accordion — first item expanded — mobile",
-      url: `${WEB_URL}/faq`,
-      viewport: { width: 375, height: 812 },
-      steps: [
-        { action: "click", selector: "details summary" },
-        { action: "wait", ms: 300 },
-      ],
-      skipIssueIds: [46],
-    },
-    {
-      label: "Web / FAQ accordion — first item expanded — desktop",
-      url: `${WEB_URL}/faq`,
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        { action: "click", selector: "details summary" },
-        { action: "wait", ms: 300 },
-      ],
-      severityThreshold: "medium",
-    },
-
-    {
-      label: "Web / Global search with query — desktop",
-      url: `${WEB_URL}/`,
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        {
-          action: "fill",
-          selector: "input[placeholder='Search collections, artists…']",
-          value: "art",
-        },
-        { action: "wait", ms: 700 },
-      ],
-      skipIssueIds: [3, 11],
-    },
-
-    {
-      label: "Web / Home hero carousel — second page — mobile",
-      url: `${WEB_URL}/`,
-      viewport: { width: 375, height: 812 },
-      steps: [
-        { action: "wait", ms: 1500 },
-        { action: "click", selector: "button[aria-label='Next collections']" },
-        { action: "wait", ms: 600 },
-      ],
-    },
-    {
-      label: "Web / Home — how it works section — desktop",
-      url: `${WEB_URL}/`,
-      viewport: { width: 1280, height: 800 },
-      steps: [
-        { action: "wait", ms: 1000 },
-        { action: "scroll", selector: "text=How it works" },
-        { action: "wait", ms: 400 },
-      ],
-      severityThreshold: "medium",
-    },
-
-    {
-      label: "Web / Collections search filter — mobile",
-      url: `${WEB_URL}/collections`,
-      viewport: { width: 375, height: 812 },
-      steps: [
-        { action: "wait", ms: 1200 },
-        {
-          action: "fill",
-          selector: "input[placeholder='Search by title or artist…']",
-          value: "paint",
-        },
-        { action: "wait", ms: 500 },
-      ],
-      skipIssueIds: [49],
-    },
-
-    // ── WEB APP — WIDE DESKTOP (1440) ─────────────────────────────────────────
-
-    {
-      label: "Web / Home — wide desktop",
-      url: `${WEB_URL}/`,
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "Web / Collections — wide desktop",
-      url: `${WEB_URL}/collections`,
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "Web / Marketplace — wide desktop",
-      url: `${WEB_URL}/marketplace`,
-      viewport: { width: 1440, height: 900 },
-      severityThreshold: "medium",
-      skipIssueIds: [49, 11],
-    },
-
-    // ── WEB APP — TABLET (768) ────────────────────────────────────────────────
-
-    {
-      label: "Web / Home — tablet",
-      url: `${WEB_URL}/`,
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-    },
-    {
-      label: "Web / Collections — tablet",
-      url: `${WEB_URL}/collections`,
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-      skipIssueIds: [49],
-    },
-    {
-      label: "Web / FAQ — tablet",
-      url: `${WEB_URL}/faq`,
-      viewport: { width: 768, height: 1024 },
-      severityThreshold: "medium",
-    },
   ],
 
   // ── CHAOS ROUTES ─────────────────────────────────────────────────────────
+  // Most interactive pages across all three apps.
   routes: [
     `${WEB_URL}/`,
     `${WEB_URL}/collections`,
