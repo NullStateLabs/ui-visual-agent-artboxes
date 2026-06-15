@@ -34,7 +34,11 @@ test.afterAll(async () => {
 
 for (const scenario of config.scenarios) {
   test(`[${scenario.viewport?.width ?? 375}px] ${scenario.label}`, async ({ page }) => {
-    const { screenshotPath, result } = await runScenario(page, scenario);
+    const globalSkips = config.globalSkipIssueIds ?? [];
+    const merged = globalSkips.length
+      ? { ...scenario, skipIssueIds: [...globalSkips, ...(scenario.skipIssueIds ?? [])] }
+      : scenario;
+    const { screenshotPath, result } = await runScenario(page, merged);
 
     if (!result.pass) {
       for (const finding of result.findings) {

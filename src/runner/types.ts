@@ -31,6 +31,13 @@ export interface Scenario {
 export interface AgentConfig {
   scenarios: Scenario[];
   /**
+   * Issue IDs from common-ui-issues.ts to skip across ALL scenarios.
+   * Use for known false positives that apply to the whole app (design system
+   * choices, rendering artefacts, intentional patterns that always fire).
+   * Per-scenario skipIssueIds are merged on top of these.
+   */
+  globalSkipIssueIds?: number[];
+  /**
    * Routes the chaos runner can explore. Falls back to sitemap.xml discovery
    * if omitted, then to ["/"] if the sitemap is unreachable.
    */

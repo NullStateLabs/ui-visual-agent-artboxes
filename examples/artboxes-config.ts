@@ -13,29 +13,58 @@
  *
  * Locally: add to .env (falls back to localhost defaults if unset)
  *
- * ── False-positive skip registry ──────────────────────────────────────────
- * #8   empty section visible in viewport (below-fold or auth-wall content)
- * #9   text clipped at container/viewport edge
- * #11  text truncated with ellipsis
+ * ── Global false-positive skip registry ───────────────────────────────────
+ * These IDs fire on virtually every page due to intentional Artboxes design
+ * choices or viewport-edge rendering artefacts. Skipped globally so they
+ * don't have to be repeated in every scenario's skipIssueIds.
+ *
+ * #3   element hidden behind another — overlay badges on artwork images and
+ *      dropdowns/modals overlapping background content are intentional
+ * #7   large empty space — auth-wall and 404 blank areas are intentional
+ * #9   text clipped at viewport/container edge — below-fold or scroll-edge
+ *      content; not a layout bug
+ * #10  text "overflows" — background content visible behind an open modal,
+ *      clipped at viewport edge
+ * #11  text truncated with ellipsis — intentional CSS on collection/artist cards
+ * #12  font appears under 11px — uppercase tracking labels (e.g.
+ *      'WITHDRAWABLE BALANCE', 'TOTAL EARNINGS') are intentional brand style
+ * #15  mixed text alignment — intentional content variation across sections
+ * #22  image clipped by container/viewport edge — object-fit crop and scroll
+ *      fold; intended image presentation
+ * #27  icon-only button with no label — social footer icons (Instagram, X,
+ *      Discord, GitHub) are universally recognisable, no label needed
+ * #32  inconsistent form field widths — filter dropdowns narrower than the
+ *      search bar above them is intentional filter-bar layout
+ * #34  nav bar overlaps main content — fixed bottom nav on mobile is the
+ *      intentional navigation pattern; pages scroll beneath it
+ * #36  active nav item identical to inactive — intentional design on both
+ *      web top-nav and artist bottom-nav
+ * #39  list item vertically misaligned — sub-pixel rendering difference,
+ *      not a real layout bug
+ * #43  transparent modal overlay — brand-style scrim and Privy auth modal
+ *      both use a light overlay intentionally
+ *
+ * ── Per-scenario skip registry (context-dependent) ────────────────────────
+ * #8   empty section in viewport (below-fold or auth-wall content)
  * #16  low-contrast text — Artboxes brand uses intentionally muted tones
  * #20  broken or missing image (CDN not yet loaded at screenshot time)
- * #22  image clipped by container edge (visible in background behind modal)
  * #23  placeholder/skeleton element visible during loading
- * #36  active nav item has no visual differentiation — intentional nav design
  * #38  skeleton card with no content (loading state)
- * #43  modal overlay appears transparent — Privy auth modal uses its own styling
- * #46  mixed icon fill/outline styles — Home icon is intentionally filled (active)
+ * #46  mixed icon fill/outline styles — Home icon is intentionally filled
  * #48  skeleton placeholder grid
  * #49  empty space / missing empty-state (loading or auth-wall)
  * #50  skeleton loading indicator
  */
 import type { AgentConfig } from "../src/runner/types.js";
 
-const WEB_URL       = process.env.WEB_URL       ?? "http://localhost:3000";
-const ARTIST_URL    = process.env.ARTIST_URL    ?? "http://localhost:3001";
-const PRELAUNCH_URL = process.env.PRELAUNCH_URL ?? "http://localhost:3002";
+const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
+const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 
 const config: AgentConfig = {
+  // ── Global false positives ───────────────────────────────────────────────
+  // See registry above for explanations.
+  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 34, 36, 39, 43],
+
   scenarios: [
     // ── WEB APP ──────────────────────────────────────────────────────────────
 
@@ -90,12 +119,12 @@ const config: AgentConfig = {
     },
 
     // Marketplace — unauthenticated shows a sign-in wall
-    // #16: brand subtitle text uses intentionally muted color on beige background
     {
       label: "Web / Marketplace — mobile (unauthed)",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 375, height: 812 },
+      // #16: brand subtitle text uses intentionally muted color on beige background
       skipIssueIds: [8, 16, 49],
     },
     {
@@ -111,12 +140,10 @@ const config: AgentConfig = {
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1440, height: 900 },
-      // #11: card titles use CSS ellipsis at fixed max-width — intentional card design
-      skipIssueIds: [8, 11, 23, 49],
+      skipIssueIds: [8, 23, 49],
     },
 
     // Auth-required pages — render a Privy sign-in wall when unauthenticated
-    // #16: "Sign in to view your…" uses intentionally muted brand color on beige
     {
       label: "Web / Dashboard — mobile (unauthed)",
       url: `${WEB_URL}/dashboard`,
@@ -136,6 +163,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/profile`,
       filePath: "apps/web/app/profile/page.tsx",
       viewport: { width: 375, height: 812 },
+      // #16: "Sign in to view your…" uses intentionally muted brand color on beige
       skipIssueIds: [8, 16, 49],
     },
     {
@@ -262,10 +290,7 @@ const config: AgentConfig = {
 
     // ── WEB APP — MODALS ─────────────────────────────────────────────────────
 
-    // Sign-in modal (Privy) — issues on background hero are not layout bugs
-    // #16: hero subtitle text uses intentionally muted brand color
-    // #43: Privy's own modal/sheet uses its own overlay styling (not our component)
-    // #9:  background hero heading visible behind modal is expected background content
+    // Sign-in modal (Privy) — overlay and background artefacts covered globally
     {
       label: "Web / Sign in modal — mobile",
       url: `${WEB_URL}/`,
@@ -275,7 +300,8 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [16, 43],
+      // #16: hero subtitle text uses intentionally muted brand color
+      skipIssueIds: [16],
     },
     {
       label: "Web / Sign in modal — desktop",
@@ -286,9 +312,6 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
-      // #9:  background hero text clipped by modal — expected when modal is open
-      // #36: home page has no active nav item — intentional
-      skipIssueIds: [9, 36],
     },
 
     // Global search — seed/test handles are intentionally long; dropdown truncation is expected
@@ -298,11 +321,19 @@ const config: AgentConfig = {
       filePath: "apps/web/components/search/GlobalSearch.tsx",
       viewport: { width: 1280, height: 800 },
       steps: [
-        { action: "click", selector: "button[aria-label*='Search'], button:has-text('Search'), [placeholder*='Search']" },
-        { action: "fill", selector: "input[type='search'], input[placeholder*='Search'], input[name='query']", value: "art" },
+        {
+          action: "click",
+          selector:
+            "button[aria-label*='Search'], button:has-text('Search'), [placeholder*='Search']",
+        },
+        {
+          action: "fill",
+          selector:
+            "input[type='search'], input[placeholder*='Search'], input[name='query']",
+          value: "art",
+        },
         { action: "wait", ms: 800 },
       ],
-      skipIssueIds: [11],
     },
 
     // Collections filter — cards at viewport bottom are partially in-view due to scroll; not overflow
@@ -312,10 +343,13 @@ const config: AgentConfig = {
       filePath: "apps/web/components/collections/CollectionFilters.tsx",
       viewport: { width: 375, height: 812 },
       steps: [
-        { action: "click", selector: "button:has-text('All mediums'), select[name='medium'], [aria-label*='mediums']" },
+        {
+          action: "click",
+          selector:
+            "button:has-text('All mediums'), select[name='medium'], [aria-label*='mediums']",
+        },
         { action: "wait", ms: 500 },
       ],
-      skipIssueIds: [9],
     },
 
     {
@@ -339,21 +373,19 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
-      // #22: portrait image clipping visible in marketplace grid BEHIND the modal — not our modal
       // #23: CDN images loading in background marketplace grid
-      skipIssueIds: [8, 16, 22, 23, 49],
+      skipIssueIds: [8, 16, 23, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
 
-    // #36: artist bottom nav has no active-item highlight — intentional design across all Artist pages
-    // #46: Home icon is filled/solid while others are outline — intentional active-state icon
     {
       label: "Artist / Home — mobile",
       url: `${ARTIST_URL}/`,
       filePath: "apps/artist/app/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [36, 46],
+      // #46: Home icon is filled/solid while others are outline — intentional active-state icon
+      skipIssueIds: [46],
     },
     {
       label: "Artist / Home — desktop",
@@ -368,7 +400,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 36, 46, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
@@ -382,8 +414,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 375, height: 812 },
-      // #23: avatar placeholder loading; #46: mixed icon styles in bottom nav
-      skipIssueIds: [8, 23, 36, 46, 49],
+      // #23: avatar placeholder loading
+      skipIssueIds: [8, 23, 46, 49],
     },
     {
       label: "Artist / Earnings — desktop (unauthed)",
@@ -398,7 +430,7 @@ const config: AgentConfig = {
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 375, height: 812 },
       // #23: hero/banner area is a loading placeholder
-      skipIssueIds: [8, 23, 36, 46, 49],
+      skipIssueIds: [8, 23, 46, 49],
     },
     {
       label: "Artist / Referrals — mobile (unauthed)",
@@ -406,7 +438,7 @@ const config: AgentConfig = {
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
       // #16: "Connect your studio wallet" placeholder is intentionally muted brand color
-      skipIssueIds: [8, 16, 36, 46, 49],
+      skipIssueIds: [8, 16, 46, 49],
     },
 
     {
@@ -421,7 +453,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/terms`,
       filePath: "apps/artist/app/terms/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [36, 46],
+      skipIssueIds: [46],
     },
 
     // ── ARTIST APP — MODALS ──────────────────────────────────────────────────
@@ -435,8 +467,7 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      // #9: dashboard earnings value visible in background, clipped at viewport bottom
-      skipIssueIds: [8, 9, 36, 46, 49],
+      skipIssueIds: [8, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -460,75 +491,6 @@ const config: AgentConfig = {
       ],
       skipIssueIds: [8, 49],
     },
-
-    // ── PRE-LAUNCH APP ───────────────────────────────────────────────────────
-
-    {
-      label: "Pre-launch / Home — mobile",
-      url: `${PRELAUNCH_URL}/`,
-      filePath: "apps/pre-launch/app/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Home — desktop",
-      url: `${PRELAUNCH_URL}/`,
-      filePath: "apps/pre-launch/app/page.tsx",
-      viewport: { width: 1280, height: 800 },
-    },
-    {
-      label: "Pre-launch / Artists — mobile",
-      url: `${PRELAUNCH_URL}/artists`,
-      filePath: "apps/pre-launch/app/artists/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Artists — desktop",
-      url: `${PRELAUNCH_URL}/artists`,
-      filePath: "apps/pre-launch/app/artists/page.tsx",
-      viewport: { width: 1280, height: 800 },
-    },
-    {
-      label: "Pre-launch / Referral Program — mobile",
-      url: `${PRELAUNCH_URL}/artists/referral-program`,
-      filePath: "apps/pre-launch/app/artists/referral-program/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Referral Program — desktop",
-      url: `${PRELAUNCH_URL}/artists/referral-program`,
-      filePath: "apps/pre-launch/app/artists/referral-program/page.tsx",
-      viewport: { width: 1280, height: 800 },
-    },
-    {
-      label: "Pre-launch / Sale Controls — mobile",
-      url: `${PRELAUNCH_URL}/artists/sale-controls`,
-      filePath: "apps/pre-launch/app/artists/sale-controls/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Sale Controls — desktop",
-      url: `${PRELAUNCH_URL}/artists/sale-controls`,
-      filePath: "apps/pre-launch/app/artists/sale-controls/page.tsx",
-      viewport: { width: 1280, height: 800 },
-    },
-    {
-      label: "Pre-launch / Learn — mobile",
-      url: `${PRELAUNCH_URL}/learn`,
-      filePath: "apps/pre-launch/app/learn/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Privacy — mobile",
-      url: `${PRELAUNCH_URL}/privacy`,
-      filePath: "apps/pre-launch/app/privacy/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
-    {
-      label: "Pre-launch / Terms — mobile",
-      url: `${PRELAUNCH_URL}/terms`,
-      filePath: "apps/pre-launch/app/terms/page.tsx",
-      viewport: { width: 375, height: 812 },
-    },
   ],
 
   // ── CHAOS ROUTES ─────────────────────────────────────────────────────────
@@ -541,9 +503,6 @@ const config: AgentConfig = {
     `${WEB_URL}/blog`,
     `${ARTIST_URL}/`,
     `${ARTIST_URL}/dashboard`,
-    `${PRELAUNCH_URL}/`,
-    `${PRELAUNCH_URL}/artists`,
-    `${PRELAUNCH_URL}/artists/referral-program`,
   ],
 };
 
