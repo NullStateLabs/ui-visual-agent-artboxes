@@ -424,7 +424,12 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
   );
 
   if (!buildPassed) {
-    console.log("\nFix Agent done. Push aborted — build could not be fixed.");
+    console.log("\nBuild could not be fixed after all retries — skipping affected tickets to prevent reprocessing.");
+    for (const { ticket } of readyFixes) {
+      await skipTicket(ticket.id);
+      console.log(`  Skipped ticket #${ticket.id} (${ticket.component})`);
+    }
+    console.log("Fix Agent done. Push aborted.");
     return;
   }
 
