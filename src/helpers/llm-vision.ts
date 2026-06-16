@@ -280,28 +280,53 @@ export interface ExploreAction {
 }
 
 /**
- * Given a screenshot, ask Claude which element to interact with next
- * to maximise UI coverage and surface potential bugs.
- * Returns null when there is nothing interesting left to explore.
+ * Given a screenshot, ask Claude which element to interact with next.
+ *
+ * mode "explore" (default — nightly visual checks):
+ *   Strategic. Tries to maximise coverage. Avoids repeating already-tried actions.
+ *
+ * mode "chaos" (battle-hardening):
+ *   Random. Picks anything clickable without a plan. Ignores history.
+ *   Simulates an unpredictable user smashing through the UI.
  */
 export async function suggestNextAction(
   imagePath: string,
-  opts: { triedActions?: string[] } = {},
+  opts: { triedActions?: string[]; mode?: "explore" | "chaos" } = {},
 ): Promise<ExploreAction | null> {
   if (MOCK_LLM) {
     return { text: "Connect", action: "click", reasoning: "MOCK: clicking the connect button" };
   }
 
+  const mode = opts.mode ?? "explore";
   const imageData = fs.readFileSync(imagePath).toString("base64");
 
-  const triedSection =
-    opts.triedActions && opts.triedActions.length > 0
+  const prompt =
+    mode === "chaos"
       ? [
+          "You are a chaotic stress-tester for a web app. Pick ONE element on this screenshot to interact with — choose it randomly, not strategically.",
           "",
-          "Already interacted with this session (do NOT choose these again):",
-          ...opts.triedActions.map((a) => `  - ${a}`),
+          "Click anything: navigation links, buttons, form inputs, tabs, dropdowns, images, cards, pagination — whatever catches your eye.",
+          "Avoid only: external links that leave the domain, and irreversible destructive actions (delete account, logout).",
+          "",
+          'Reply with JSON only — no markdown, no prose: {"text":"<visible text of element>","action":"click"|"fill","value":"<text to type if fill>","reasoning":"<one sentence>"}',
+          'Return {"text":null} only if the page is completely blank with no interactive elements.',
         ].join("\n")
-      : "";
+      : [
+          "You are an exploratory tester for a web app. Given this screenshot, choose ONE interactive element to interact with next to maximise UI coverage and surface potential bugs.",
+          "",
+          "Prefer: navigation links, buttons, form inputs, tabs, dropdowns, modal triggers, pagination.",
+          "Avoid: external links, destructive actions (delete, logout).",
+          opts.triedActions && opts.triedActions.length > 0
+            ? [
+                "",
+                "Already interacted with this session (do NOT choose these again):",
+                ...opts.triedActions.map((a) => `  - ${a}`),
+              ].join("\n")
+            : "",
+          "",
+          'Reply with JSON only — no markdown, no prose: {"text":"<visible text of element>","action":"click"|"fill","value":"<text to type if fill>","reasoning":"<one sentence>"}',
+          'Return {"text":null} if nothing interesting remains or all interesting elements were already tried.',
+        ].join("\n");
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-4-6",
@@ -314,19 +339,7 @@ export async function suggestNextAction(
             type: "image",
             source: { type: "base64", media_type: "image/png", data: imageData },
           },
-          {
-            type: "text",
-            text: [
-              "You are an exploratory tester for a web app. Given this screenshot, choose ONE interactive element to interact with next to maximise UI coverage and surface potential bugs.",
-              "",
-              "Prefer: navigation links, buttons, form inputs, tabs, dropdowns, modal triggers, pagination.",
-              "Avoid: external links, destructive actions (delete, logout).",
-              triedSection,
-              "",
-              'Reply with JSON only — no markdown, no prose: {"text":"<visible text of element>","action":"click"|"fill","value":"<text to type if fill>","reasoning":"<one sentence>"}',
-              'Return {"text":null} if nothing interesting remains or all interesting elements were already tried.',
-            ].join("\n"),
-          },
+          { type: "text", text: prompt },
         ],
       },
     ],

@@ -33,6 +33,12 @@ export interface ChaosSessionOpts {
   skipIds?: number[];
   /** Unique session label used for the screenshot directory (e.g. a timestamp slug) */
   sessionId?: string;
+  /**
+   * "chaos"   — random clicks, no history, battle-hardening mode (pre-launch).
+   * "explore" — strategic clicks that avoid repetition, nightly support mode.
+   * Default: "chaos"
+   */
+  explorationMode?: "chaos" | "explore";
 }
 
 export interface ChaosStepResult {
@@ -58,6 +64,7 @@ export async function runChaosSession(
   const viewport = opts.viewport ?? { width: 375, height: 812 };
   const severityThreshold = opts.severityThreshold ?? "medium";
   const skipIds = opts.skipIds ?? [];
+  const explorationMode = opts.explorationMode ?? "chaos";
 
   // Isolate screenshots per session so concurrent runs don't clobber each other
   const sessionSlug = opts.sessionId ?? (startRoute.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "home");
@@ -103,8 +110,11 @@ export async function runChaosSession(
       console.log(`  step ${i + 1} [${currentRoute}]: ${findings.length} issue(s) found`);
     }
 
-    // Ask Claude what to interact with next, passing the full history so it doesn't repeat
-    const action = await suggestNextAction(screenshotPath, { triedActions });
+    // In chaos mode: random pick, no history. In explore mode: strategic, avoids repeats.
+    const action = await suggestNextAction(screenshotPath, {
+      mode: explorationMode,
+      triedActions: explorationMode === "explore" ? triedActions : undefined,
+    });
 
     if (!action) {
       console.log(`  step ${i + 1}: no more interactions suggested, stopping early`);

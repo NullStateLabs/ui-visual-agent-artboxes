@@ -54,6 +54,7 @@ for (const route of routes) {
       steps: chaosOpts.steps ?? CHAOS_STEPS,
       viewport: chaosOpts.viewport,
       severityThreshold: chaosOpts.severityThreshold,
+      explorationMode: chaosOpts.explorationMode ?? "chaos",
       skipIds: globalSkipIds,
       sessionId: route.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "home",
     });

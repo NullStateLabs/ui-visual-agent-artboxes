@@ -24,9 +24,11 @@ export default async function teardown() {
     return;
   }
 
+  // DIRECT_TO_MAIN takes priority — used when chaos mode is ready to push straight to main.
+  // CHAOS_MODE without DIRECT_TO_MAIN pushes to the test-chaos branch (safe for testing).
   const mode =
-    process.env.CHAOS_MODE === "true"    ? "chaos-branch" :
     process.env.DIRECT_TO_MAIN === "true" ? "direct" :
+    process.env.CHAOS_MODE === "true"      ? "chaos-branch" :
     "bugfix-branch";
   console.log(`\n[teardown] Running fix agent (mode: ${mode})…`);
 

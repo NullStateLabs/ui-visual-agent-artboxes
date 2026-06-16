@@ -35,6 +35,11 @@ export interface ChaosConfig {
   viewport?: { width: number; height: number };
   /** Only report issues at or above this severity. Default: "medium" */
   severityThreshold?: "high" | "medium" | "low";
+  /**
+   * "chaos"   — random clicks, battle-hardening mode. Default.
+   * "explore" — strategic clicks that avoid repeating the same element.
+   */
+  explorationMode?: "chaos" | "explore";
 }
 
 export interface AgentConfig {
