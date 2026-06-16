@@ -28,6 +28,20 @@ export interface Scenario {
   severityThreshold?: "high" | "medium" | "low";
 }
 
+export interface ChaosConfig {
+  /** Number of explore steps per route. Default: 12 */
+  steps?: number;
+  /** Viewport for chaos sessions. Default: mobile 375×812 */
+  viewport?: { width: number; height: number };
+  /** Only report issues at or above this severity. Default: "medium" */
+  severityThreshold?: "high" | "medium" | "low";
+  /**
+   * "chaos"   — random clicks, battle-hardening mode. Default.
+   * "explore" — strategic clicks that avoid repeating the same element.
+   */
+  explorationMode?: "chaos" | "explore";
+}
+
 export interface AgentConfig {
   scenarios: Scenario[];
   /**
@@ -42,4 +56,6 @@ export interface AgentConfig {
    * if omitted, then to ["/"] if the sitemap is unreachable.
    */
   routes?: string[];
+  /** Chaos mode options. Applied to all chaos sessions. */
+  chaosConfig?: ChaosConfig;
 }

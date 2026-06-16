@@ -7,7 +7,7 @@
     "test": "playwright test --project=chromium specs/visual-checklist.spec.ts",
     "test:ci": "AUTO_FIX=true playwright test --project=chromium specs/visual-checklist.spec.ts",
     "test:chaos": "playwright test --project=chromium specs/chaos.spec.ts",
-    "test:chaos:ci": "AUTO_FIX=true DIRECT_TO_MAIN=true playwright test --project=chromium specs/chaos.spec.ts",
+    "test:chaos:ci": "AUTO_FIX=true CHAOS_MODE=true playwright test --project=chromium specs/chaos.spec.ts",
     "fix": "tsx src/agent/fix-agent.ts",
     "migrate": "tsx src/helpers/migrate.ts",
     "db:cleanup": "tsx src/helpers/db-cleanup.ts"
