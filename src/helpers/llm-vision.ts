@@ -284,12 +284,24 @@ export interface ExploreAction {
  * to maximise UI coverage and surface potential bugs.
  * Returns null when there is nothing interesting left to explore.
  */
-export async function suggestNextAction(imagePath: string): Promise<ExploreAction | null> {
+export async function suggestNextAction(
+  imagePath: string,
+  opts: { triedActions?: string[] } = {},
+): Promise<ExploreAction | null> {
   if (MOCK_LLM) {
     return { text: "Connect", action: "click", reasoning: "MOCK: clicking the connect button" };
   }
 
   const imageData = fs.readFileSync(imagePath).toString("base64");
+
+  const triedSection =
+    opts.triedActions && opts.triedActions.length > 0
+      ? [
+          "",
+          "Already interacted with this session (do NOT choose these again):",
+          ...opts.triedActions.map((a) => `  - ${a}`),
+        ].join("\n")
+      : "";
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-4-6",
@@ -308,10 +320,11 @@ export async function suggestNextAction(imagePath: string): Promise<ExploreActio
               "You are an exploratory tester for a web app. Given this screenshot, choose ONE interactive element to interact with next to maximise UI coverage and surface potential bugs.",
               "",
               "Prefer: navigation links, buttons, form inputs, tabs, dropdowns, modal triggers, pagination.",
-              "Avoid: elements you have likely already clicked this session, external links, destructive actions (delete, logout).",
+              "Avoid: external links, destructive actions (delete, logout).",
+              triedSection,
               "",
               'Reply with JSON only — no markdown, no prose: {"text":"<visible text of element>","action":"click"|"fill","value":"<text to type if fill>","reasoning":"<one sentence>"}',
-              'Return {"text":null} if nothing interesting remains.',
+              'Return {"text":null} if nothing interesting remains or all interesting elements were already tried.',
             ].join("\n"),
           },
         ],

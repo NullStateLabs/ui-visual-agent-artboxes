@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { analyzeScreenshotWithChecklist } from "../src/helpers/llm-vision.js";
-import { insertBugTicket, closePool } from "../src/helpers/db-ticket.js";
+import { upsertBugTicket, closePool } from "../src/helpers/db-ticket.js";
 
 const MOBILE_WIDTH = 375;
 const MOBILE_HEIGHT = 812;
@@ -37,7 +37,7 @@ test("SectionHeader children stack vertically on mobile", async ({ page }) => {
 
   if (!pass) {
     for (const finding of findings) {
-      const ticketId = await insertBugTicket({
+      const { id: ticketId } = await upsertBugTicket({
         component: COMPONENT,
         file_path: FILE_PATH,
         assertion: finding.description,

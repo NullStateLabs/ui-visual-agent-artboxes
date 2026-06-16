@@ -24,7 +24,10 @@ export default async function teardown() {
     return;
   }
 
-  const mode = process.env.DIRECT_TO_MAIN === "true" ? "direct" : "bugfix-branch";
+  const mode =
+    process.env.CHAOS_MODE === "true"    ? "chaos-branch" :
+    process.env.DIRECT_TO_MAIN === "true" ? "direct" :
+    "bugfix-branch";
   console.log(`\n[teardown] Running fix agent (mode: ${mode})…`);
 
   try {

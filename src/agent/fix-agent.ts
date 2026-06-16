@@ -9,7 +9,11 @@
  *     3. If build passes → stage N commits (one per ticket), ONE push
  *     4. Open / update PR on the 'bugfix' branch
  *
- *   'direct' (chaos / battle-hardening):
+ *   'chaos-branch' (chaos / battle-hardening, default for chaos CI):
+ *     Same build check, push to CHAOS_BRANCH (default: "test-chaos"), open PR.
+ *     Safer than 'direct' — never writes to main.
+ *
+ *   'direct' (dangerous — writes straight to base branch, no PR):
  *     Same build check, then one push straight to the base branch. No PR.
  *
  * Required env vars:
@@ -21,6 +25,8 @@
  *   REPO_OWNER      — defaults to "NullStateLabs"
  *   REPO_NAME       — defaults to "artboxes"
  *   REPO_BRANCH     — defaults to "main"
+ *   FIX_BRANCH      — branch used in 'bugfix-branch' mode (default: "bugfix")
+ *   CHAOS_BRANCH    — branch used in 'chaos-branch' mode (default: "test-chaos")
  *   BUILD_COMMAND   — shell command to verify the build before pushing,
  *                     e.g. "pnpm install --frozen-lockfile && pnpm build"
  *                     Runs inside a shallow clone of the target repo.
@@ -36,10 +42,11 @@ import { Octokit } from "@octokit/rest";
 import { getOpenTickets, resolveTicket, skipTicket, closePool, type BugTicket } from "../helpers/db-ticket.js";
 import { generateCodeFix, generateBuildFix } from "../helpers/llm-vision.js";
 
-const REPO_OWNER    = process.env.REPO_OWNER  ?? "NullStateLabs";
-const REPO_NAME     = process.env.REPO_NAME   ?? "artboxes";
-const BASE_BRANCH   = process.env.REPO_BRANCH ?? "main";
-const BUGFIX_BRANCH = "bugfix";
+const REPO_OWNER    = process.env.REPO_OWNER   ?? "NullStateLabs";
+const REPO_NAME     = process.env.REPO_NAME    ?? "artboxes";
+const BASE_BRANCH   = process.env.REPO_BRANCH  ?? "main";
+const BUGFIX_BRANCH = process.env.FIX_BRANCH   ?? "bugfix";
+const CHAOS_BRANCH  = process.env.CHAOS_BRANCH ?? "test-chaos";
 
 function getOctokit(): Octokit {
   const token = process.env.UI_FIX_GITHUB_TOKEN;
@@ -260,22 +267,22 @@ async function commitAllAndPush(
   return currentSha;
 }
 
-async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
+async function ensureBugfixBranch(octokit: Octokit, branch: string): Promise<void> {
   try {
     await octokit.git.getRef({
-      owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${BUGFIX_BRANCH}`,
+      owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${branch}`,
     });
-    console.log(`  Branch '${BUGFIX_BRANCH}' already exists`);
+    console.log(`  Branch '${branch}' already exists`);
   } catch {
     const { data: mainRef } = await octokit.git.getRef({
       owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${BASE_BRANCH}`,
     });
     await octokit.git.createRef({
       owner: REPO_OWNER, repo: REPO_NAME,
-      ref: `refs/heads/${BUGFIX_BRANCH}`,
+      ref: `refs/heads/${branch}`,
       sha: mainRef.object.sha,
     });
-    console.log(`  Created branch '${BUGFIX_BRANCH}' from ${BASE_BRANCH}`);
+    console.log(`  Created branch '${branch}' from ${BASE_BRANCH}`);
   }
 }
 
@@ -284,10 +291,11 @@ async function ensureBugfixBranch(octokit: Octokit): Promise<void> {
 async function ensureBugfixPR(
   octokit: Octokit,
   fixed: Array<BugTicket & { id: number }>,
+  branch: string,
 ): Promise<string> {
   const { data: existing } = await octokit.pulls.list({
     owner: REPO_OWNER, repo: REPO_NAME,
-    head: `${REPO_OWNER}:${BUGFIX_BRANCH}`,
+    head: `${REPO_OWNER}:${branch}`,
     base: BASE_BRANCH,
     state: "open",
   });
@@ -314,7 +322,7 @@ async function ensureBugfixPR(
     owner: REPO_OWNER, repo: REPO_NAME,
     title: `fix(ui): visual regression fixes (${fixed.length} ticket${fixed.length !== 1 ? "s" : ""})`,
     body,
-    head: BUGFIX_BRANCH,
+    head: branch,
     base: BASE_BRANCH,
   });
 
@@ -325,7 +333,7 @@ async function ensureBugfixPR(
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export interface FixAgentOpts {
-  mode?: "bugfix-branch" | "direct";
+  mode?: "bugfix-branch" | "chaos-branch" | "direct";
 }
 
 export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
@@ -349,12 +357,15 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
   console.log(`Found ${tickets.length} open ticket(s)`);
   if (tickets.length === 0) return;
 
-  const targetBranch = mode === "direct" ? BASE_BRANCH : BUGFIX_BRANCH;
+  const targetBranch =
+    mode === "direct"       ? BASE_BRANCH :
+    mode === "chaos-branch" ? CHAOS_BRANCH :
+    BUGFIX_BRANCH;
   console.log(`  Target: ${REPO_OWNER}/${REPO_NAME} @ ${targetBranch}`);
 
-  if (mode === "bugfix-branch") {
+  if (mode === "bugfix-branch" || mode === "chaos-branch") {
     try {
-      await ensureBugfixBranch(octokit);
+      await ensureBugfixBranch(octokit, targetBranch);
     } catch (err) {
       console.error(
         `Fix Agent: cannot access ${REPO_OWNER}/${REPO_NAME} — check REPO_OWNER, REPO_NAME and UI_FIX_GITHUB_TOKEN.\n  Error: ${err}`,
@@ -480,8 +491,8 @@ export async function runFixAgent(opts: FixAgentOpts = {}): Promise<void> {
 
   // ── Phase 5: open / update PR ─────────────────────────────────────────────
 
-  if (mode === "bugfix-branch") {
-    await ensureBugfixPR(octokit, readyFixes.map((f) => f.ticket));
+  if (mode === "bugfix-branch" || mode === "chaos-branch") {
+    await ensureBugfixPR(octokit, readyFixes.map((f) => f.ticket), targetBranch);
   }
 
   console.log(`\nFix Agent done. ${readyFixes.length}/${tickets.length} ticket(s) resolved.`);
