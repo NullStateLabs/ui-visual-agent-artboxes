@@ -14,43 +14,39 @@
  * Locally: add to .env (falls back to localhost defaults if unset)
  *
  * ── Global false-positive skip registry ───────────────────────────────────
- * These IDs fire on virtually every page due to intentional Artboxes design
- * choices or viewport-edge rendering artefacts. Skipped globally so they
- * don't have to be repeated in every scenario's skipIssueIds.
+ * Only UNCONDITIONAL design choices that can NEVER be real bugs in Artboxes.
+ * If an issue ID could be a real bug on some page, skip it per-scenario instead.
  *
- * #3   element hidden behind another — overlay badges on artwork images and
- *      dropdowns/modals overlapping background content are intentional
+ * #3   element hidden behind another — artwork overlay badges ("UPCOMING",
+ *      "SOLD"), dropdowns, and modals overlapping backgrounds are all
+ *      intentional in a gallery app
  * #7   large empty space — auth-wall and 404 blank areas are intentional
- * #9   text clipped at viewport/container edge — below-fold or scroll-edge
- *      content; not a layout bug
- * #10  text "overflows" — background content visible behind an open modal,
- *      clipped at viewport edge
  * #11  text truncated with ellipsis — intentional CSS on collection/artist cards
- * #12  font appears under 11px — uppercase tracking labels (e.g.
- *      'WITHDRAWABLE BALANCE', 'TOTAL EARNINGS') are intentional brand style
+ * #12  font appears under 11px — uppercase tracking labels ("WITHDRAWABLE
+ *      BALANCE", "TOTAL EARNINGS") are intentional brand style
  * #15  mixed text alignment — intentional content variation across sections
- * #22  image clipped by container/viewport edge — object-fit crop and scroll
- *      fold; intended image presentation
  * #27  icon-only button with no label — social footer icons (Instagram, X,
- *      Discord, GitHub) are universally recognisable, no label needed
+ *      Discord, GitHub) are universally recognisable
  * #32  inconsistent form field widths — filter dropdowns narrower than the
- *      search bar above them is intentional filter-bar layout
- * #33  navigation links cut off — also fires for non-nav content near the
- *      viewport scroll edge (e.g. earnings values at the bottom of screen)
+ *      search bar is intentional filter-bar layout
  * #34  nav bar overlaps main content — fixed bottom nav on mobile is the
  *      intentional navigation pattern; pages scroll beneath it
  * #36  active nav item identical to inactive — intentional design on both
  *      web top-nav and artist bottom-nav
- * #39  list item vertically misaligned — sub-pixel rendering difference,
+ * #39  list item vertically misaligned — sub-pixel rendering artefact,
  *      not a real layout bug
  * #43  transparent modal overlay — brand-style scrim and Privy auth modal
  *      both use a light overlay intentionally
  *
  * ── Per-scenario skip registry (context-dependent) ────────────────────────
  * #8   empty section in viewport (below-fold or auth-wall content)
+ * #9   text clipped at viewport edge — below-fold content, not a real clip
+ * #10  text "overflows" — background page visible behind an open modal
  * #16  low-contrast text — Artboxes brand uses intentionally muted tones
  * #20  broken or missing image (CDN not yet loaded at screenshot time)
+ * #22  image clipped by viewport edge — scroll-fold cut-off, not overflow
  * #23  placeholder/skeleton element visible during loading
+ * #33  nav links cut off — fires for non-nav content at scroll edge too
  * #38  skeleton card with no content (loading state)
  * #46  mixed icon fill/outline styles — Home icon is intentionally filled
  * #48  skeleton placeholder grid
@@ -63,9 +59,8 @@ const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
 const ARTIST_URL = process.env.ARTIST_URL ?? "http://localhost:3001";
 
 const config: AgentConfig = {
-  // ── Global false positives ───────────────────────────────────────────────
-  // See registry above for explanations.
-  globalSkipIssueIds: [3, 7, 9, 10, 11, 12, 15, 22, 27, 32, 33, 34, 36, 39, 43],
+  // Unconditional design choices — see registry above for explanations.
+  globalSkipIssueIds: [3, 7, 11, 12, 15, 27, 32, 34, 36, 39, 43],
 
   scenarios: [
     // ── WEB APP ──────────────────────────────────────────────────────────────
@@ -87,6 +82,8 @@ const config: AgentConfig = {
       url: `${WEB_URL}/`,
       filePath: "apps/web/app/page.tsx",
       viewport: { width: 768, height: 1024 },
+      // #22: hero image intentionally bleeds to viewport edge at tablet width
+      skipIssueIds: [22],
     },
 
     {
@@ -117,7 +114,8 @@ const config: AgentConfig = {
       filePath: "apps/web/app/upcoming/page.tsx",
       viewport: { width: 1280, height: 800 },
       // gradient/blank placeholder cards while CDN images load
-      skipIssueIds: [8, 20, 23, 38],
+      // #22: last row of cards partially visible at scroll fold
+      skipIssueIds: [8, 20, 22, 23, 38],
     },
 
     // Marketplace — unauthenticated shows a sign-in wall
@@ -134,15 +132,17 @@ const config: AgentConfig = {
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1280, height: 800 },
+      // #22: bottom row of artwork images partially visible at viewport edge
       // #23: CDN images still loading in marketplace grid at screenshot time
-      skipIssueIds: [8, 23, 49],
+      skipIssueIds: [8, 22, 23, 49],
     },
     {
       label: "Web / Marketplace — wide desktop",
       url: `${WEB_URL}/marketplace`,
       filePath: "apps/web/app/marketplace/page.tsx",
       viewport: { width: 1440, height: 900 },
-      skipIssueIds: [8, 23, 49],
+      // #22: bottom row partially visible at viewport scroll edge
+      skipIssueIds: [8, 22, 23, 49],
     },
 
     // Auth-required pages — render a Privy sign-in wall when unauthenticated
@@ -292,7 +292,7 @@ const config: AgentConfig = {
 
     // ── WEB APP — MODALS ─────────────────────────────────────────────────────
 
-    // Sign-in modal (Privy) — overlay and background artefacts covered globally
+    // Sign-in modal (Privy) — background hero artefacts are not layout bugs
     {
       label: "Web / Sign in modal — mobile",
       url: `${WEB_URL}/`,
@@ -314,9 +314,11 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Sign in')" },
         { action: "wait", ms: 600 },
       ],
+      // #9: background hero text clipped by modal — expected when modal is open
+      skipIssueIds: [9],
     },
 
-    // Global search — seed/test handles are intentionally long; dropdown truncation is expected
+    // Global search — seed/test handles are intentionally long
     {
       label: "Web / Global search with query — desktop",
       url: `${WEB_URL}/`,
@@ -338,7 +340,7 @@ const config: AgentConfig = {
       ],
     },
 
-    // Collections filter — cards at viewport bottom are partially in-view due to scroll; not overflow
+    // Collections filter — cards at viewport bottom are partially in-view
     {
       label: "Web / Collections search filter — mobile",
       url: `${WEB_URL}/collections`,
@@ -352,6 +354,8 @@ const config: AgentConfig = {
         },
         { action: "wait", ms: 500 },
       ],
+      // #9: cards at viewport bottom partially visible — scroll fold, not clipping
+      skipIssueIds: [9],
     },
 
     {
@@ -364,7 +368,8 @@ const config: AgentConfig = {
         { action: "wait", ms: 600 },
       ],
       // #16: marketplace description text uses intentionally muted brand color
-      skipIssueIds: [8, 16, 49],
+      // #22: portrait image at scroll fold behind modal is not overflow
+      skipIssueIds: [8, 16, 22, 49],
     },
     {
       label: "Web / PlaceOfferModal — desktop",
@@ -375,8 +380,9 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Place offer')" },
         { action: "wait", ms: 600 },
       ],
+      // #22: portrait image clipping visible in marketplace grid BEHIND the modal
       // #23: CDN images loading in background marketplace grid
-      skipIssueIds: [8, 16, 23, 49],
+      skipIssueIds: [8, 16, 22, 23, 49],
     },
 
     // ── ARTIST APP ───────────────────────────────────────────────────────────
@@ -402,7 +408,8 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
-      skipIssueIds: [8, 46, 49],
+      // #9/#33: TOTAL EARNINGS value at bottom of scroll fold, not a real clip
+      skipIssueIds: [8, 9, 33, 46, 49],
     },
     {
       label: "Artist / Dashboard — desktop (unauthed)",
@@ -469,7 +476,9 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Add socials')" },
         { action: "wait", ms: 600 },
       ],
-      skipIssueIds: [8, 46, 49],
+      // #9/#10: dashboard earnings value visible in background behind the modal,
+      // clipped at viewport bottom — background element, not the modal itself
+      skipIssueIds: [8, 9, 10, 46, 49],
     },
     {
       label: "Artist / WithdrawModal — mobile",
@@ -491,13 +500,12 @@ const config: AgentConfig = {
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
       ],
-      // #16: background page content appears low-contrast because the modal scrim dims it — intentional
+      // #16: background page content appears low-contrast because the modal scrim dims it
       skipIssueIds: [8, 16, 49],
     },
   ],
 
   // ── CHAOS ROUTES ─────────────────────────────────────────────────────────
-  // Most interactive pages across all three apps.
   routes: [
     `${WEB_URL}/`,
     `${WEB_URL}/collections`,
