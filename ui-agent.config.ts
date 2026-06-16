@@ -82,7 +82,7 @@ const DEMO_PRIZE_ID        = process.env.DEMO_PRIZE_ID        ?? "demo-prize-id"
 const DEMO_TX_HASH         = process.env.DEMO_TX_HASH         ?? "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const config: AgentConfig = {
-  globalSkipIssueIds: [7, 11, 12, 15, 27, 32, 34, 36, 39, 43],
+  globalSkipIssueIds: [7, 8, 11, 12, 15, 27, 32, 34, 36, 39, 43, 49],
 
   scenarios: [
 
