@@ -8,12 +8,15 @@
  * deciding what to click next based on screenshots. Any issues found are
  * inserted as bug tickets.
  *
- * Set AUTO_FIX=true + DIRECT_TO_MAIN=true to commit fixes straight to the
- * base branch. The fix agent runs in globalTeardown (playwright.config.ts)
- * once after all workers finish — not once per worker.
+ * globalSkipIssueIds and chaosConfig from ui-agent.config.ts are forwarded
+ * to every chaos session automatically.
+ *
+ * Set AUTO_FIX=true + CHAOS_MODE=true to commit fixes to the 'test-chaos'
+ * branch (configurable via CHAOS_BRANCH env var). The fix agent runs in
+ * globalTeardown (playwright.config.ts) once after all workers finish.
  *
  * Run manually:  pnpm test:chaos
- * Run in CI:     pnpm test:chaos:ci   (sets AUTO_FIX + DIRECT_TO_MAIN)
+ * Run in CI:     pnpm test:chaos:ci   (sets AUTO_FIX + CHAOS_MODE)
  */
 
 import { test, expect } from "@playwright/test";
@@ -38,13 +41,23 @@ const routes: string[] =
     ? config.routes
     : await discoverRoutes(BASE_URL);
 
+const globalSkipIds = config.globalSkipIssueIds ?? [];
+const chaosOpts = config.chaosConfig ?? {};
+
 test.afterAll(async () => {
   await closePool();
 });
 
 for (const route of routes) {
   test(`chaos [${CHAOS_STEPS} steps]: ${route}`, async ({ page }) => {
-    const session = await runChaosSession(page, route, { steps: CHAOS_STEPS });
+    const session = await runChaosSession(page, route, {
+      steps: chaosOpts.steps ?? CHAOS_STEPS,
+      viewport: chaosOpts.viewport,
+      severityThreshold: chaosOpts.severityThreshold,
+      explorationMode: chaosOpts.explorationMode ?? "chaos",
+      skipIds: globalSkipIds,
+      sessionId: route.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "home",
+    });
 
     for (const stepResult of session.steps) {
       for (const finding of stepResult.findings) {
