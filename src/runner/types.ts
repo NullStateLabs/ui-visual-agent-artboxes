@@ -1,3 +1,24 @@
+/**
+ * Authentication state to inject before a scenario or chaos session runs.
+ * Generate once with `pnpm auth:save`, store as a GitHub secret in CI.
+ *
+ * Works with any auth provider that persists state in cookies / localStorage
+ * (Privy, NextAuth, Clerk, Supabase, etc.).
+ */
+export interface ScenarioAuth {
+  /**
+   * Path to a Playwright storageState JSON file (cookies + localStorage).
+   * Created by `pnpm auth:save`. Relative to the repo root.
+   * In CI, decode the AUTH_STATE secret and write this file before running tests.
+   */
+  storageState?: string;
+  /**
+   * Individual localStorage key/value pairs to inject instead of a full state file.
+   * Useful when you only need specific tokens (e.g. a Privy JWT from an env var).
+   */
+  localStorage?: Record<string, string>;
+}
+
 export type StepAction =
   | { action: "click";   selector: string }
   | { action: "hover";   selector: string }
@@ -26,6 +47,12 @@ export interface Scenario {
   skipIssueIds?: number[];
   /** Only report issues at or above this severity. Defaults to "low" */
   severityThreshold?: "high" | "medium" | "low";
+  /**
+   * Auth state to inject before this scenario runs.
+   * Overrides AgentConfig.auth for this specific scenario.
+   * Set to null to explicitly skip auth even when AgentConfig.auth is set.
+   */
+  auth?: ScenarioAuth | null;
 }
 
 export interface ChaosConfig {
@@ -58,4 +85,10 @@ export interface AgentConfig {
   routes?: string[];
   /** Chaos mode options. Applied to all chaos sessions. */
   chaosConfig?: ChaosConfig;
+  /**
+   * Default auth state applied to every scenario and chaos session.
+   * Individual scenarios can override with their own auth field,
+   * or opt out with auth: null.
+   */
+  auth?: ScenarioAuth;
 }
