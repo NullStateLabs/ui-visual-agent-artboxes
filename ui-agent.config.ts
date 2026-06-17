@@ -71,21 +71,25 @@ import type { AgentConfig } from "./src/runner/types.js";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const WEB_URL    = process.env.WEB_URL    ?? "https://demo.boxes.art";
-const ARTIST_URL = process.env.ARTIST_URL ?? "https://artboxes-artist.vercel.app";
+const WEB_URL = process.env.WEB_URL ?? "https://demo.boxes.art";
+const ARTIST_URL =
+  process.env.ARTIST_URL ?? "https://artboxes-artist.vercel.app";
 
-const DEMO_COLLECTION_SLUG = process.env.DEMO_COLLECTION_SLUG ?? "demo-collection";
+const DEMO_COLLECTION_SLUG =
+  process.env.DEMO_COLLECTION_SLUG ?? "demo-collection";
 const DEMO_ARTIST_USERNAME = process.env.DEMO_ARTIST_USERNAME ?? "demo-artist";
-const DEMO_COLLECTION_ID   = process.env.DEMO_COLLECTION_ID   ?? "demo-collection-id";
-const DEMO_TOKEN_ID        = process.env.DEMO_TOKEN_ID        ?? "1";
-const DEMO_PRIZE_ID        = process.env.DEMO_PRIZE_ID        ?? "demo-prize-id";
-const DEMO_TX_HASH         = process.env.DEMO_TX_HASH         ?? "0x0000000000000000000000000000000000000000000000000000000000000000";
+const DEMO_COLLECTION_ID =
+  process.env.DEMO_COLLECTION_ID ?? "demo-collection-id";
+const DEMO_TOKEN_ID = process.env.DEMO_TOKEN_ID ?? "1";
+const DEMO_PRIZE_ID = process.env.DEMO_PRIZE_ID ?? "demo-prize-id";
+const DEMO_TX_HASH =
+  process.env.DEMO_TX_HASH ??
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const config: AgentConfig = {
   globalSkipIssueIds: [7, 8, 11, 12, 15, 27, 32, 34, 36, 39, 43, 49],
 
   scenarios: [
-
     // ── WEB / HOME ───────────────────────────────────────────────────────────
 
     {
@@ -188,7 +192,7 @@ const config: AgentConfig = {
       filePath: "apps/web/app/collections/[slug]/private/page.tsx",
       viewport: { width: 1280, height: 800 },
       skipIssueIds: [
-        8,  // empty container if the private sale has no allowlist entries yet
+        8, // empty container if the private sale has no allowlist entries yet
         49, // no-content state is valid before any buyers are invited
       ],
     },
@@ -290,8 +294,9 @@ const config: AgentConfig = {
       url: `${WEB_URL}/dashboard`,
       filePath: "apps/web/app/dashboard/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // sign-in wall renders as an empty container by design
+        8, // sign-in wall renders as an empty container by design
         49, // no inventory shown until wallet is connected
       ],
     },
@@ -300,6 +305,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/dashboard`,
       filePath: "apps/web/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -308,6 +314,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/profile`,
       filePath: "apps/web/app/profile/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -316,6 +323,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/wallet`,
       filePath: "apps/web/app/wallet/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -324,6 +332,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/history`,
       filePath: "apps/web/app/history/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -332,6 +341,7 @@ const config: AgentConfig = {
       url: `${WEB_URL}/shipping`,
       filePath: "apps/web/app/shipping/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -342,8 +352,9 @@ const config: AgentConfig = {
       url: `${WEB_URL}/receipts/${DEMO_TX_HASH}`,
       filePath: "apps/web/app/receipts/[txHash]/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // empty container if tx hash resolves to no data in target env
+        8, // empty container if tx hash resolves to no data in target env
         49, // no receipt content until tx is confirmed on-chain
       ],
     },
@@ -371,7 +382,7 @@ const config: AgentConfig = {
       filePath: "apps/web/app/blog/[id]/page.tsx",
       viewport: { width: 375, height: 812 },
       skipIssueIds: [
-        8,  // empty if post id doesn't exist in target env
+        8, // empty if post id doesn't exist in target env
         20, // post inline images from CDN
       ],
     },
@@ -472,7 +483,7 @@ const config: AgentConfig = {
       filePath: "apps/web/app/layout.tsx",
       viewport: { width: 375, height: 812 },
       skipIssueIds: [
-        8,  // 404 body is intentionally sparse
+        8, // 404 body is intentionally sparse
         49, // no content is the expected 404 state
       ],
     },
@@ -488,8 +499,9 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/`,
       filePath: "apps/artist/app/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // sign-in prompt renders as an empty container until wallet connected
+        8, // sign-in prompt renders as an empty container until wallet connected
         49, // no dashboard data before auth
       ],
     },
@@ -498,6 +510,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/`,
       filePath: "apps/artist/app/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -508,6 +521,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [49], // empty state when artist has no collections yet
     },
     {
@@ -515,6 +529,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/app/dashboard/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [49],
     },
 
@@ -525,6 +540,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/new`,
       filePath: "apps/artist/app/collections/new/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium", // form under active development
       skipIssueIds: [
         8, // some form sections are conditionally empty on first load
@@ -535,6 +551,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/new`,
       filePath: "apps/artist/app/collections/new/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       skipIssueIds: [8],
     },
@@ -546,6 +563,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}`,
       filePath: "apps/artist/app/collections/[collectionId]/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
         20, // collection artwork from CDN
         23, // skeleton while collection data loads
@@ -557,6 +575,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}`,
       filePath: "apps/artist/app/collections/[collectionId]/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [20, 23, 49],
     },
 
@@ -566,6 +585,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}`,
       filePath: "apps/artist/components/shared/CashOutModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       steps: [
         { action: "click", selector: "button:has-text('Cash Out')" },
@@ -580,8 +600,10 @@ const config: AgentConfig = {
     {
       label: "artist / collection detail — SendGiveawayModal open (desktop)",
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}`,
-      filePath: "apps/artist/components/collections/detail/SendGiveawayModal.tsx",
+      filePath:
+        "apps/artist/components/collections/detail/SendGiveawayModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       steps: [
         { action: "click", selector: "button:has-text('Send')" },
@@ -595,10 +617,13 @@ const config: AgentConfig = {
 
     // Modal: Add Allowlist User — PrivateSaleSection on collection detail
     {
-      label: "artist / collection detail — AddAllowlistUserModal open (desktop)",
+      label:
+        "artist / collection detail — AddAllowlistUserModal open (desktop)",
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}`,
-      filePath: "apps/artist/components/collections/detail/AddAllowlistUserModal.tsx",
+      filePath:
+        "apps/artist/components/collections/detail/AddAllowlistUserModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       steps: [
         { action: "click", selector: "button:has-text('Add')" },
@@ -616,6 +641,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}/studio`,
       filePath: "apps/artist/app/collections/[collectionId]/studio/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium", // studio is actively developed
       skipIssueIds: [
         20, // artwork from CDN
@@ -628,6 +654,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}/studio`,
       filePath: "apps/artist/app/collections/[collectionId]/studio/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       skipIssueIds: [20, 23, 49],
     },
@@ -636,8 +663,10 @@ const config: AgentConfig = {
     {
       label: "artist / collection studio — EndSaleEarlyModal open (desktop)",
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}/studio`,
-      filePath: "apps/artist/components/collections/detail/EndSaleEarlyModal.tsx",
+      filePath:
+        "apps/artist/components/collections/detail/EndSaleEarlyModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
       steps: [
         { action: "click", selector: "button:has-text('End sale early')" },
@@ -653,16 +682,20 @@ const config: AgentConfig = {
     {
       label: "artist / new prize — desktop",
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}/prizes/new`,
-      filePath: "apps/artist/app/collections/[collectionId]/prizes/new/page.tsx",
+      filePath:
+        "apps/artist/app/collections/[collectionId]/prizes/new/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
     },
 
     {
       label: "artist / consolation prize — desktop",
       url: `${ARTIST_URL}/collections/${DEMO_COLLECTION_ID}/prizes/consolation`,
-      filePath: "apps/artist/app/collections/[collectionId]/prizes/consolation/page.tsx",
+      filePath:
+        "apps/artist/app/collections/[collectionId]/prizes/consolation/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       severityThreshold: "medium",
     },
 
@@ -673,8 +706,9 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // zero-balance sections render as empty containers before wallet connected
+        8, // zero-balance sections render as empty containers before wallet connected
         49, // no earnings data before first sale
       ],
     },
@@ -683,6 +717,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/app/earnings/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -692,6 +727,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/components/earnings/WithdrawModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       steps: [
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
@@ -706,6 +742,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/earnings`,
       filePath: "apps/artist/components/earnings/WithdrawModal.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       steps: [
         { action: "click", selector: "button:has-text('Withdraw')" },
         { action: "wait", ms: 600 },
@@ -720,8 +757,9 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/referrals`,
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // invite link section empty before wallet connected
+        8, // invite link section empty before wallet connected
         49, // referral table empty if no referrals yet
       ],
     },
@@ -730,6 +768,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/referrals`,
       filePath: "apps/artist/app/referrals/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -740,6 +779,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/claims`,
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [49], // empty state when no claims have been submitted
     },
     {
@@ -747,6 +787,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/claims`,
       filePath: "apps/artist/app/claims/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [49],
     },
 
@@ -757,8 +798,9 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/moderation`,
       filePath: "apps/artist/app/moderation/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [
-        8,  // empty container if no items require moderation
+        8, // empty container if no items require moderation
         49, // no moderation queue entries
       ],
     },
@@ -768,6 +810,7 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/ops`,
       filePath: "apps/artist/app/ops/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
       skipIssueIds: [8, 49],
     },
 
@@ -777,8 +820,13 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/dashboard`,
       filePath: "apps/artist/components/socials/AddSocialsModal.tsx",
       viewport: { width: 1280, height: 800 },
+      auth: { storageState: "auth/state.json" },
       steps: [
-        { action: "click", selector: "button:has-text('Link socials'), button:has-text('Add socials')" },
+        {
+          action: "click",
+          selector:
+            "button:has-text('Link socials'), button:has-text('Add socials')",
+        },
         { action: "wait", ms: 600 },
       ],
       skipIssueIds: [
@@ -794,14 +842,15 @@ const config: AgentConfig = {
       url: `${ARTIST_URL}/privacy`,
       filePath: "apps/artist/app/privacy/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
     },
     {
       label: "artist / terms — mobile",
       url: `${ARTIST_URL}/terms`,
       filePath: "apps/artist/app/terms/page.tsx",
       viewport: { width: 375, height: 812 },
+      auth: { storageState: "auth/state.json" },
     },
-
   ],
 
   // Most interactive routes across both apps for the chaos runner
