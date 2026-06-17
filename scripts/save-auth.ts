@@ -5,8 +5,9 @@
  * then saves the full browser state (cookies + localStorage) to auth/state.json.
  *
  * Usage:
- *   pnpm auth:save
- *   pnpm auth:save -- --url https://staging.yourapp.com
+ *   pnpm auth:save -- --url=https://artboxes.io
+ *   pnpm auth:save -- --url=https://staging.artboxes.io
+ *   BASE_URL=https://artboxes.io pnpm auth:save
  *
  * After saving, encode the file for use as a GitHub Actions secret:
  *   base64 -i auth/state.json | pbcopy   # macOS — paste into the AUTH_STATE secret
@@ -22,7 +23,15 @@ import * as readline from "readline";
 const BASE_URL =
   process.argv.find((a) => a.startsWith("--url="))?.split("=")[1] ??
   process.env.BASE_URL ??
-  "http://localhost:3000";
+  null;
+
+if (!BASE_URL) {
+  console.error("\nError: no URL provided.\n");
+  console.error("Usage:");
+  console.error("  pnpm auth:save -- --url=https://artboxes.io");
+  console.error("  BASE_URL=https://artboxes.io pnpm auth:save\n");
+  process.exit(1);
+}
 
 const AUTH_DIR = path.join(process.cwd(), "auth");
 const AUTH_FILE = path.join(AUTH_DIR, "state.json");
@@ -45,7 +54,14 @@ const browser = await chromium.launch({ headless: false });
 const context = await browser.newContext();
 const page = await context.newPage();
 
-await page.goto(BASE_URL);
+try {
+  await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+} catch (err: any) {
+  await browser.close();
+  console.error(`\nFailed to open ${BASE_URL}:`);
+  console.error(`  ${err.message?.split("\n")[0]}\n`);
+  process.exit(1);
+}
 
 await prompt("   → Press Enter when logged in: ");
 
