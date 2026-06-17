@@ -29,10 +29,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Restore auth state
-        if: ${{ secrets.AUTH_STATE != '' }}
+        env:
+          AUTH_STATE: ${{ secrets.AUTH_STATE }}
         run: |
-          mkdir -p auth
-          echo "${{ secrets.AUTH_STATE }}" | base64 -d > auth/state.json
+          if [ -n "$AUTH_STATE" ]; then
+            mkdir -p auth
+            echo "$AUTH_STATE" | base64 -d > auth/state.json
+          fi
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
