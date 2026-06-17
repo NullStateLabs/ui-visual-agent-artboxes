@@ -1,19 +1,28 @@
 import type { Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
-import type { Scenario, StepAction } from "./types.js";
+import type { Scenario, ScenarioAuth, StepAction } from "./types.js";
 import { analyzeScreenshotWithChecklist, type ChecklistResult } from "../helpers/llm-vision.js";
+import { applyAuth } from "../helpers/auth.js";
 
 const SCREENSHOTS_DIR = path.join(import.meta.dirname, "../../screenshots");
 
 export async function runScenario(
   page: Page,
-  scenario: Scenario
+  scenario: Scenario,
+  opts: { defaultAuth?: ScenarioAuth } = {}
 ): Promise<{ screenshotPath: string; result: ChecklistResult }> {
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
   const viewport = scenario.viewport ?? { width: 375, height: 812 };
   await page.setViewportSize(viewport);
+
+  // Resolve auth: scenario.auth overrides defaultAuth; null explicitly disables auth
+  const auth = scenario.auth !== undefined ? scenario.auth : opts.defaultAuth;
+  if (auth) {
+    await applyAuth(page, auth);
+  }
+
   await page.goto(scenario.url, { waitUntil: "load" });
 
   for (const step of scenario.steps ?? []) {

@@ -20,6 +20,8 @@ import {
   suggestNextAction,
   type ChecklistFinding,
 } from "../helpers/llm-vision.js";
+import { applyAuth } from "../helpers/auth.js";
+import type { ScenarioAuth } from "./types.js";
 
 const SCREENSHOTS_BASE = path.join(import.meta.dirname, "../../screenshots/chaos");
 
@@ -39,6 +41,8 @@ export interface ChaosSessionOpts {
    * Default: "chaos"
    */
   explorationMode?: "chaos" | "explore";
+  /** Auth state to inject before the session starts (same as scenario auth). */
+  auth?: ScenarioAuth;
 }
 
 export interface ChaosStepResult {
@@ -72,6 +76,12 @@ export async function runChaosSession(
   fs.mkdirSync(screenshotsDir, { recursive: true });
 
   await page.setViewportSize(viewport);
+
+  // Inject auth state before navigating to the start route
+  if (opts.auth) {
+    await applyAuth(page, opts.auth);
+  }
+
   await page.goto(startRoute, { waitUntil: "load" });
   await page.waitForTimeout(600);
 

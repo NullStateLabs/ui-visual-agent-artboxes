@@ -38,7 +38,9 @@ for (const scenario of config.scenarios) {
     const merged = globalSkips.length
       ? { ...scenario, skipIssueIds: [...globalSkips, ...(scenario.skipIssueIds ?? [])] }
       : scenario;
-    const { screenshotPath, result } = await runScenario(page, merged);
+    const { screenshotPath, result } = await runScenario(page, merged, {
+      defaultAuth: config.auth,
+    });
 
     if (!result.pass) {
       for (const finding of result.findings) {
