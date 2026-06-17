@@ -10,7 +10,8 @@
     "test:chaos:ci": "AUTO_FIX=true CHAOS_MODE=true playwright test --project=chromium specs/chaos.spec.ts",
     "fix": "tsx src/agent/fix-agent.ts",
     "migrate": "tsx src/helpers/migrate.ts",
-    "db:cleanup": "tsx src/helpers/db-cleanup.ts"
+    "db:cleanup": "tsx src/helpers/db-cleanup.ts",
+    "auth:save": "tsx scripts/save-auth.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.0",
